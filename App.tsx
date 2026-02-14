@@ -55,7 +55,7 @@ const App: React.FC = () => {
 
   const fetchUserProfile = async (userId: string, email: string) => {
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -88,6 +88,7 @@ const App: React.FC = () => {
   };
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
+    // 1. Sign up the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password: pass,
@@ -107,21 +108,24 @@ const App: React.FC = () => {
         createdAt: Date.now() 
       };
       
-      const { error: profileError } = await supabase.from('profiles').insert([profileData]);
+      // 2. Try to insert/upsert profile data
+      // We use upsert to prevent errors if a trigger already created the profile
+      const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
       
       if (profileError) {
-        console.error("Profile creation error:", profileError);
-        // If error is duplicate ID, it means profile already exists, which is fine
-        if (profileError.code !== '23505') {
-          throw new Error("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল তথ্য সেভ করা সম্ভব হয়নি।");
+        console.error("Detailed Profile Error:", profileError);
+        // If it's a permission error (RLS), it's often because email isn't confirmed
+        if (profileError.code === '42501') {
+          throw new Error("আপনার ইমেইল ভেরিফাই করা প্রয়োজন অথবা সুপাবেস ড্যাশবোর্ড থেকে 'Confirm Email' অপশনটি বন্ধ করুন।");
         }
+        throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
       }
 
       if (data.session) {
         setCurrentUser({ ...profileData, email } as User);
         setCurrentView('home');
       } else {
-        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করুন অথবা লগইন করুন।");
+        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন (যদি কনফার্মেশন অন থাকে) অথবা সরাসরি লগইন করার চেষ্টা করুন।");
         setCurrentView('login');
       }
     }

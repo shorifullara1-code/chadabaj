@@ -24,6 +24,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
     if (msg.includes('User already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
     if (msg.includes('Invalid login credentials')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
     if (msg.includes('Password should be at least')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
+    if (msg.includes('প্রোফাইল সেভ করা যায়নি')) return 'অ্যাকাউন্ট তৈরি হয়েছে কিন্তু ডাটাবেসে প্রোফাইল সেভ করা যায়নি। সম্ভবত ইমেইল ভেরিফাই করা হয়নি অথবা RLS পলিসি অনুমতি দিচ্ছে না।';
     return msg;
   };
 
