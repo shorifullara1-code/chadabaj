@@ -68,32 +68,29 @@ const App: React.FC = () => {
 
     let mounted = true;
 
-    // Fail-safe: Maximum 5 seconds loading time
+    // Faster fail-safe: 3 seconds
     const safetyTimeout = setTimeout(() => {
       if (mounted && isLoading) {
-        console.warn("Initialization taking too long, forcing app to load...");
+        console.warn("Loading timeout - showing app anyway");
         setIsLoading(false);
       }
-    }, 5000);
+    }, 3000);
 
     const initialize = async () => {
       try {
-        console.log("Initializing App Data...");
-        
-        // Parallel data fetch
-        await Promise.allSettled([
-          fetchReports(),
-          fetchUsers()
-        ]);
-
+        // Run essential auth check first
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
 
         if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
+
+        // Run non-essential data loading in parallel without blocking UI
+        fetchReports();
+        fetchUsers();
       } catch (e) {
-        console.error("Initialization sequence failed:", e);
+        console.error("Initialization error:", e);
       } finally {
         if (mounted) {
           clearTimeout(safetyTimeout);
@@ -209,14 +206,8 @@ const App: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
-          <p className="text-gray-500 font-black animate-pulse">চান্দাবাজ লোড হচ্ছে...</p>
-          <button 
-            onClick={() => setIsLoading(false)} 
-            className="mt-8 text-xs text-gray-400 underline hover:text-[#2da65e] transition-colors"
-          >
-            অনেক সময় নিচ্ছে? এখানে ক্লিক করুন
-          </button>
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
+          <p className="text-gray-400 font-bold text-sm">লোডিং হচ্ছে...</p>
         </div>
       </div>
     );
