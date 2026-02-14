@@ -22,11 +22,11 @@ const App: React.FC = () => {
 
   const fetchReports = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('reports')
         .select('*')
         .order('timestamp', { ascending: false });
-      
+      if (error) throw error;
       if (data) setReports(data as Report[]);
     } catch (e) {
       console.error("Fetch reports error:", e);
@@ -35,7 +35,8 @@ const App: React.FC = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const { data } = await supabase.from('profiles').select('*');
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (error) throw error;
       if (data) setUsers(data as User[]);
     } catch (e) {
       console.error("Fetch users error:", e);
@@ -44,11 +45,13 @@ const App: React.FC = () => {
 
   const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
 
       if (profile) {
         setCurrentUser({
@@ -63,28 +66,33 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const initialize = async () => {
       try {
-        // Parallel data loading
-        await Promise.all([
+        // Parallel data loading for better performance
+        await Promise.allSettled([
           fetchReports(),
           fetchUsers()
         ]);
 
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
+        if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
       } catch (e) {
         console.error("Initialization failed:", e);
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
     initialize();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
       if (event === 'SIGNED_IN' && session?.user) {
         await fetchUserProfile(session.user.id, session.user.email!);
       } else if (event === 'SIGNED_OUT') {
@@ -94,6 +102,7 @@ const App: React.FC = () => {
     });
 
     return () => {
+      mounted = false;
       authListener.subscription.unsubscribe();
     };
   }, [fetchReports, fetchUsers, fetchUserProfile]);
