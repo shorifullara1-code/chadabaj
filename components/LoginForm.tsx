@@ -20,25 +20,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Safety timer to clear loading state if it hangs too long
   useEffect(() => {
     let timer: number;
     if (loading) {
+      // Increased safety timer for slower networks or Supabase delay
       timer = window.setTimeout(() => {
         if (loading) {
           setLoading(false);
-          setError('সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। দয়া করে রিফ্রেশ করে আবার চেষ্টা করুন।');
+          setError('সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। দয়া করে আপনার ইন্টারনেট চেক করুন এবং আবার চেষ্টা করুন।');
         }
-      }, 15000);
+      }, 25000);
     }
     return () => clearTimeout(timer);
   }, [loading]);
 
   const translateError = (msg: string) => {
     const lowMsg = msg.toLowerCase();
-    if (lowMsg.includes('rate limit')) {
-      return 'ইমেইল লিমিট শেষ হয়েছে (প্রতি ঘণ্টায় মাত্র ৩টি অ্যাকাউন্ট খোলা যায়)। দয়া করে ১ ঘণ্টা অপেক্ষা করে আবার চেষ্টা করুন।';
-    }
+    if (lowMsg.includes('rate limit')) return 'ইমেইল লিমিট শেষ হয়েছে। দয়া করে ১ ঘণ্টা অপেক্ষা করে আবার চেষ্টা করুন।';
     if (lowMsg.includes('already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
     if (lowMsg.includes('invalid login')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
     if (lowMsg.includes('at least 6 characters')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
@@ -62,10 +60,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         }
         const result = await onRegister(name, email, phone, password);
         if (result === "SUCCESS_EMAIL_VERIFY_PENDING") {
-          setSuccessMsg("আপনার অ্যাকাউন্ট তৈরি হয়েছে! আপনার ইমেইল চেক করে ভেরিফাই করুন (Spam ফোল্ডারও চেক করতে পারেন)। এরপর লগইন করুন।");
+          setSuccessMsg("অ্যাকাউন্ট তৈরি হয়েছে! দয়া করে আপনার ইমেইল (Inbox/Spam) চেক করুন এবং ভেরিফিকেশন লিঙ্কে ক্লিক করুন। এরপর এখানে লগইন করুন।");
           setIsRegistering(false);
           setEmail('');
           setPassword('');
+        } else if (result === "SUCCESS") {
+          // Handled by redirect in App.tsx but as a fallback:
+          setSuccessMsg("সফলভাবে অ্যাকাউন্ট তৈরি হয়েছে!");
         }
       } else {
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -82,7 +83,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
           if (profile) {
             onLogin({ id: data.user.id, email: data.user.email!, ...profile } as User);
           } else {
-            setError('প্রোফাইল পাওয়া যায়নি। দয়া করে সঠিক তথ্য দিয়ে পুনরায় চেষ্টা করুন।');
+            setError('আপনার প্রোফাইল তথ্য লোড করা যায়নি। দয়া করে রিফ্রেশ দিন।');
           }
         }
       }
@@ -98,10 +99,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-50 overflow-hidden relative">
         {loading && (
-          <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
             <div className="w-12 h-12 border-4 border-[#2da65e]/20 border-t-[#2da65e] rounded-full animate-spin mb-4"></div>
-            <p className="font-black text-[#2da65e] animate-pulse">প্রসেস হচ্ছে...</p>
-            <p className="text-[10px] text-gray-400 mt-2">একটু অপেক্ষা করুন</p>
+            <p className="font-black text-[#2da65e] animate-pulse">অনুরোধ প্রসেস হচ্ছে...</p>
           </div>
         )}
 

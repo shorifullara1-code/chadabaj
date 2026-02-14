@@ -69,20 +69,15 @@ const App: React.FC = () => {
     let mounted = true;
 
     const safetyTimeout = setTimeout(() => {
-      if (mounted && isLoading) {
-        setIsLoading(false);
-      }
-    }, 2000);
+      if (mounted && isLoading) setIsLoading(false);
+    }, 3000);
 
     const initialize = async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const session = sessionData?.session;
-
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
-
         fetchReports();
         fetchUsers();
       } catch (e) {
@@ -90,7 +85,7 @@ const App: React.FC = () => {
       } finally {
         if (mounted) {
           clearTimeout(safetyTimeout);
-          setTimeout(() => setIsLoading(false), 100);
+          setIsLoading(false);
         }
       }
     };
@@ -126,29 +121,16 @@ const App: React.FC = () => {
       
       if (error) throw error;
 
-      if (data.user) {
-        const profileData = { 
-          id: data.user.id, 
-          name, 
-          phone, 
-          role: 'user', 
-          createdAt: Date.now() 
-        };
-        
-        // Profiles are sometimes created via DB trigger, but we upsert manually to be sure
-        const { error: profileError } = await supabase.from('profiles').upsert([profileData], { onConflict: 'id' });
-        
-        if (profileError) {
-          console.error("Profile creation warning:", profileError);
-        }
-
-        if (data.session) {
-          const userObj = { ...profileData, email } as User;
-          setCurrentUser(userObj);
-          setCurrentView('home');
-        } else {
-          return "SUCCESS_EMAIL_VERIFY_PENDING";
-        }
+      // If session exists, user is logged in automatically (Confirmation OFF)
+      if (data.session && data.user) {
+        const profileData = { id: data.user.id, name, phone, role: 'user', createdAt: Date.now() };
+        await supabase.from('profiles').upsert([profileData], { onConflict: 'id' });
+        setCurrentUser({ ...profileData, email } as User);
+        setCurrentView('home');
+        return "SUCCESS";
+      } else {
+        // Confirmation ON
+        return "SUCCESS_EMAIL_VERIFY_PENDING";
       }
     } catch (err: any) {
       console.error("Registration failed:", err);
@@ -210,10 +192,7 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
-          <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">লোড হচ্ছে...</p>
-        </div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#2da65e]"></div>
       </div>
     );
   }
