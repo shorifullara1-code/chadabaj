@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from './components/Navbar.tsx';
 import Hero from './components/Hero.tsx';
 import ReportForm from './components/ReportForm.tsx';
@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [lastSubmittedTicket, setLastSubmittedTicket] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const initializationTriggered = useRef(false);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -26,8 +27,7 @@ const App: React.FC = () => {
         .from('reports')
         .select('*')
         .order('timestamp', { ascending: false });
-      if (error) console.error("Report fetch error:", error.message);
-      if (data) setReports(data as Report[]);
+      if (!error && data) setReports(data as Report[]);
     } catch (e) {
       console.error("Fetch reports error:", e);
     }
@@ -36,8 +36,7 @@ const App: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
-      if (error) console.error("User fetch error:", error.message);
-      if (data) setUsers(data as User[]);
+      if (!error && data) setUsers(data as User[]);
     } catch (e) {
       console.error("Fetch users error:", e);
     }
@@ -50,8 +49,6 @@ const App: React.FC = () => {
         .select('*')
         .eq('id', userId)
         .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
 
       if (profile) {
         setCurrentUser({
@@ -66,31 +63,41 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (initializationTriggered.current) return;
+    initializationTriggered.current = true;
+
     let mounted = true;
+
+    // Fail-safe: Maximum 5 seconds loading time
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && isLoading) {
+        console.warn("Initialization taking too long, forcing app to load...");
+        setIsLoading(false);
+      }
+    }, 5000);
 
     const initialize = async () => {
       try {
-        // Parallel data loading for better performance
+        console.log("Initializing App Data...");
+        
+        // Parallel data fetch
         await Promise.allSettled([
           fetchReports(),
           fetchUsers()
         ]);
 
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          console.warn("Session retrieval failed:", sessionError.message);
-        }
-
+        const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
+
         if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
       } catch (e) {
-        console.error("Initialization failed:", e);
+        console.error("Initialization sequence failed:", e);
       } finally {
         if (mounted) {
-          // Delay to ensure smooth UI transition
-          setTimeout(() => setIsLoading(false), 300);
+          clearTimeout(safetyTimeout);
+          setIsLoading(false);
         }
       }
     };
@@ -109,6 +116,7 @@ const App: React.FC = () => {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       authListener.subscription.unsubscribe();
     };
   }, [fetchReports, fetchUsers, fetchUserProfile]);
@@ -134,16 +142,13 @@ const App: React.FC = () => {
       };
       
       const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
-      
-      if (profileError) {
-        throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
-      }
+      if (profileError) throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
 
       if (data.session) {
         setCurrentUser({ ...profileData, email } as User);
         setCurrentView('home');
       } else {
-        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন অথবা সরাসরি লগইন করুন।");
+        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন।");
         setCurrentView('login');
       }
     }
@@ -206,6 +211,12 @@ const App: React.FC = () => {
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
           <p className="text-gray-500 font-black animate-pulse">চান্দাবাজ লোড হচ্ছে...</p>
+          <button 
+            onClick={() => setIsLoading(false)} 
+            className="mt-8 text-xs text-gray-400 underline hover:text-[#2da65e] transition-colors"
+          >
+            অনেক সময় নিচ্ছে? এখানে ক্লিক করুন
+          </button>
         </div>
       </div>
     );
