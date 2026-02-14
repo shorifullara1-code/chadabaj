@@ -24,51 +24,78 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
     setError('');
     setLoading(true);
 
-    if (isRegistering) {
-      await onRegister(name, email, phone, password);
-    } else {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (authError) {
-        setError(authError.message);
-      } else if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+    try {
+      if (isRegistering) {
+        await onRegister(name, email, phone, password);
+      } else {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (authError) {
+          setError(authError.message === 'Invalid login credentials' ? 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।' : authError.message);
+        } else if (data.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
 
-        if (profile) {
-          onLogin({ id: data.user.id, email: data.user.email!, ...profile } as User);
+          if (profile) {
+            onLogin({ id: data.user.id, email: data.user.email!, ...profile } as User);
+          } else {
+            setError('প্রোফাইল তথ্য পাওয়া যায়নি। দয়া করে এডমিনের সাথে যোগাযোগ করুন।');
+          }
         }
       }
+    } catch (err: any) {
+      if (err.message?.includes('Email rate limit exceeded')) {
+        setError('ইমেইল লিমিট শেষ হয়েছে। দয়া করে ১ ঘণ্টা পর চেষ্টা করুন অথবা সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" অপশনটি বন্ধ করুন।');
+      } else {
+        setError('একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
     <div className="flex items-center justify-center min-h-[70vh] px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-10 border border-gray-50">
+        <div className="flex justify-center mb-6">
+           <div className="w-16 h-16 bg-[#2da65e]/10 rounded-2xl flex items-center justify-center">
+              <svg className="w-8 h-8 text-[#2da65e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+           </div>
+        </div>
         <h2 className="text-3xl font-black text-gray-900 text-center mb-6">{isRegistering ? 'নতুন অ্যাকাউন্ট' : 'লগইন করুন'}</h2>
         
         <form onSubmit={handleSubmit} className="space-y-5">
           {isRegistering && (
             <>
-              <input required type="text" className="w-full px-5 py-3.5 bg-gray-50 border rounded-2xl" placeholder="আপনার নাম" value={name} onChange={e => setName(e.target.value)} />
-              <input required type="tel" className="w-full px-5 py-3.5 bg-gray-50 border rounded-2xl" placeholder="মোবাইল নম্বর" value={phone} onChange={e => setPhone(e.target.value)} />
+              <input required type="text" className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 transition-all" placeholder="আপনার নাম" value={name} onChange={e => setName(e.target.value)} />
+              <input required type="tel" className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 transition-all" placeholder="মোবাইল নম্বর" value={phone} onChange={e => setPhone(e.target.value)} />
             </>
           )}
-          <input required type="email" className="w-full px-5 py-3.5 bg-gray-50 border rounded-2xl" placeholder="ইমেইল" value={email} onChange={e => setEmail(e.target.value)} />
-          <input required type="password" className="w-full px-5 py-3.5 bg-gray-50 border rounded-2xl" placeholder="পাসওয়ার্ড" value={password} onChange={e => setPassword(e.target.value)} />
+          <input required type="email" className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 transition-all" placeholder="ইমেইল" value={email} onChange={e => setEmail(e.target.value)} />
+          <input required type="password" className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 transition-all" placeholder="পাসওয়ার্ড" value={password} onChange={e => setPassword(e.target.value)} />
           
-          {error && <p className="text-xs text-red-500 font-bold">{error}</p>}
+          {error && (
+            <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+               <p className="text-xs text-red-600 font-bold leading-relaxed">{error}</p>
+            </div>
+          )}
 
-          <button disabled={loading} type="submit" className="w-full py-4 bg-[#2da65e] text-white font-black rounded-2xl shadow-xl hover:bg-[#258a4d] disabled:bg-gray-300">
+          <button disabled={loading} type="submit" className="w-full py-4 bg-[#2da65e] text-white font-black rounded-2xl shadow-xl hover:bg-[#258a4d] disabled:bg-gray-300 transform active:scale-95 transition-all">
             {loading ? 'প্রসেস হচ্ছে...' : (isRegistering ? 'সাইন-আপ' : 'প্রবেশ করুন')}
           </button>
 
-          <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="w-full py-3 text-[#2da65e] font-bold">
-            {isRegistering ? 'লগইন করুন' : 'নতুন অ্যাকাউন্ট তৈরি করুন'}
+          <div className="relative py-4">
+             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+             <div className="relative flex justify-center text-xs font-bold uppercase"><span className="bg-white px-4 text-gray-400">অথবা</span></div>
+          </div>
+
+          <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); }} className="w-full py-3 text-[#2da65e] font-bold hover:bg-green-50 rounded-xl transition-all">
+            {isRegistering ? 'আগে থেকেই অ্যাকাউন্ট আছে? লগইন করুন' : 'অ্যাকাউন্ট নেই? নতুন অ্যাকাউন্ট তৈরি করুন'}
           </button>
         </form>
       </div>

@@ -27,16 +27,21 @@ const App: React.FC = () => {
 
     // 1. Initial Session Check
     const checkInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email!);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await fetchUserProfile(session.user.id, session.user.email!);
+        }
+      } catch (e) {
+        console.error("Session check failed", e);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     checkInitialSession();
 
-    // 2. Listen for Auth State Changes (Login, Logout, Refresh)
+    // 2. Listen for Auth State Changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         await fetchUserProfile(session.user.id, session.user.email!);
@@ -87,22 +92,39 @@ const App: React.FC = () => {
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password: pass });
+    
     if (error) {
-      alert(error.message);
-      return;
+      if (error.message.includes('Email rate limit exceeded')) {
+        throw new Error('ইমেইল লিমিট শেষ হয়েছে। সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" বন্ধ করুন।');
+      }
+      throw error;
     }
+
     if (data.user) {
-      const profileData = { id: data.user.id, name, phone, role: 'user', createdAt: Date.now() };
+      const profileData = { 
+        id: data.user.id, 
+        name, 
+        phone, 
+        role: 'user', 
+        createdAt: Date.now() 
+      };
+      
       const { error: profileError } = await supabase.from('profiles').insert([profileData]);
       
       if (profileError) {
         console.error("Profile creation error:", profileError);
-        alert("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল সেটআপে সমস্যা হয়েছে। দয়া করে আবার লগইন করুন।");
+        alert("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল তথ্যে সমস্যা হয়েছে। দয়া করে লগইন করুন।");
         return;
       }
 
-      setCurrentUser({ ...profileData, email } as User);
-      setCurrentView('home');
+      // If email confirmation is OFF in Supabase, we get a session immediately
+      if (data.session) {
+        setCurrentUser({ ...profileData, email } as User);
+        setCurrentView('home');
+      } else {
+        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করুন (যদি কনফার্মেশন অন থাকে) অথবা লগইন করার চেষ্টা করুন।");
+        setCurrentView('login');
+      }
     }
   };
 
@@ -131,7 +153,7 @@ const App: React.FC = () => {
 
     const { error } = await supabase.from('reports').insert([report]);
     if (error) {
-      alert("Error submitting report: " + error.message);
+      alert("রিপোর্ট জমা দিতে সমস্যা হয়েছে: " + error.message);
       return;
     }
 
@@ -148,7 +170,7 @@ const App: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this report?')) {
+    if (window.confirm('আপনি কি নিশ্চিত যে এই রিপোর্টটি ডিলিট করতে চান?')) {
       const { error } = await supabase.from('reports').delete().eq('id', id);
       if (!error) fetchReports();
     }
@@ -202,15 +224,15 @@ const App: React.FC = () => {
                 }} />
                 <section className="bg-gray-50 py-24 px-4 text-center">
                   <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
-                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100">
+                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
                       <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.length + 371}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">মোট রিপোর্ট জমা</div>
                     </div>
-                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100">
+                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
                       <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.filter(r => r.status === 'Resolved').length + 124}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">সফল অভিযান</div>
                     </div>
-                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100">
+                    <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
                       <div className="text-6xl font-black text-[#2da65e] mb-4">{users.length + 500}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">সক্রিয় ইউজার</div>
                     </div>
@@ -232,14 +254,27 @@ const App: React.FC = () => {
       </main>
 
       {showToast && (
-        <div className="fixed bottom-10 right-10 bg-[#1a1a1a] text-white p-5 rounded-3xl shadow-2xl z-[100] animate-bounce">
-          <div className="font-black">রিপোর্ট সফল!</div>
-          <div className="text-green-400 font-mono">টিকেট: {lastSubmittedTicket}</div>
+        <div className="fixed bottom-10 right-10 bg-[#1a1a1a] text-white p-6 rounded-3xl shadow-2xl z-[100] animate-bounce border-l-8 border-[#2da65e]">
+          <div className="flex items-center space-x-4">
+             <div className="w-10 h-10 bg-[#2da65e] rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+             </div>
+             <div>
+                <div className="font-black text-lg">রিপোর্ট সফল!</div>
+                <div className="text-green-400 font-mono text-sm">টিকেট: {lastSubmittedTicket}</div>
+             </div>
+          </div>
         </div>
       )}
 
-      <footer className="bg-white border-t border-gray-100 py-10 text-center">
-        <p className="text-gray-400 text-xs font-black tracking-widest">© {new Date().getFullYear()} চান্দাবাজ ডট কম</p>
+      <footer className="bg-white border-t border-gray-100 py-12 text-center">
+        <div className="max-w-7xl mx-auto px-4">
+           <div className="flex justify-center items-center space-x-2 mb-4">
+              <div className="w-6 h-6 bg-[#2da65e] rounded-lg"></div>
+              <span className="text-xl font-black text-gray-900">চান্দাবাজ</span>
+           </div>
+           <p className="text-gray-400 text-xs font-black tracking-widest">© {new Date().getFullYear()} চান্দাবাজ ডট কম - দুর্নীতিমুক্ত আগামীর জন্য</p>
+        </div>
       </footer>
     </div>
   );
