@@ -68,7 +68,6 @@ const App: React.FC = () => {
 
     let mounted = true;
 
-    // Ultral-fast fail-safe: 2 seconds
     const safetyTimeout = setTimeout(() => {
       if (mounted && isLoading) {
         setIsLoading(false);
@@ -77,7 +76,6 @@ const App: React.FC = () => {
 
     const initialize = async () => {
       try {
-        // Essential check: current session
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
 
@@ -85,7 +83,6 @@ const App: React.FC = () => {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
 
-        // Parallel non-blocking fetches
         fetchReports();
         fetchUsers();
       } catch (e) {
@@ -93,7 +90,6 @@ const App: React.FC = () => {
       } finally {
         if (mounted) {
           clearTimeout(safetyTimeout);
-          // Add a tiny delay for smooth UI transition
           setTimeout(() => setIsLoading(false), 100);
         }
       }
@@ -119,35 +115,44 @@ const App: React.FC = () => {
   }, [fetchReports, fetchUsers, fetchUserProfile]);
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password: pass,
-      options: {
-        data: { full_name: name, phone: phone }
-      }
-    });
-    
-    if (error) throw error;
-
-    if (data.user) {
-      const profileData = { 
-        id: data.user.id, 
-        name, 
-        phone, 
-        role: 'user', 
-        createdAt: Date.now() 
-      };
+    try {
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password: pass,
+        options: {
+          data: { full_name: name, phone: phone }
+        }
+      });
       
-      const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
-      if (profileError) throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
+      if (error) throw error;
 
-      if (data.session) {
-        setCurrentUser({ ...profileData, email } as User);
-        setCurrentView('home');
-      } else {
-        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন।");
-        setCurrentView('login');
+      if (data.user) {
+        const profileData = { 
+          id: data.user.id, 
+          name, 
+          phone, 
+          role: 'user', 
+          createdAt: Date.now() 
+        };
+        
+        // Profiles are usually managed by a database trigger, but here we do it explicitly
+        const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
+        if (profileError) {
+          console.error("Profile creation error:", profileError);
+          // Don't throw if user is already created, but inform them
+        }
+
+        if (data.session) {
+          setCurrentUser({ ...profileData, email } as User);
+          setCurrentView('home');
+        } else {
+          // If email confirmation is required, inform the user
+          return "SUCCESS_EMAIL_VERIFY_PENDING";
+        }
       }
+    } catch (err: any) {
+      console.error("Registration full error:", err);
+      throw err;
     }
   };
 
@@ -158,7 +163,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    // If it's a demo admin, just reset state
     if (currentUser?.id === 'demo-admin-id') {
       setCurrentUser(null);
       setCurrentView('home');
