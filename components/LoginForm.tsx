@@ -31,6 +31,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+
     setError('');
     setSuccessMsg('');
     setLoading(true);
@@ -45,26 +47,30 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
           role: 'admin',
           createdAt: Date.now()
         } as User);
-        setLoading(false);
         return;
       }
 
       if (isRegistering) {
         if (!name || !phone) {
           setError('দয়া করে নাম এবং মোবাইল নম্বর দিন।');
-          setLoading(false);
           return;
         }
+        console.log("Starting registration for:", email);
         const result = await onRegister(name, email, phone, password);
+        console.log("Registration result:", result);
+        
         if (result === "SUCCESS_EMAIL_VERIFY_PENDING") {
           setSuccessMsg("আপনার অ্যাকাউন্ট তৈরি হয়েছে! দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন (Spam ফোল্ডারও চেক করতে পারেন)। এরপর লগইন করুন।");
           setIsRegistering(false);
+          setEmail('');
+          setPassword('');
         }
       } else {
+        console.log("Starting login for:", email);
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         
         if (authError) {
-          setError(translateError(authError.message));
+          throw authError;
         } else if (data.user) {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
@@ -81,7 +87,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         }
       }
     } catch (err: any) {
-      console.error("Login/Register catch:", err);
+      console.error("LoginForm Error:", err);
       setError(translateError(err.message || 'একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।'));
     } finally {
       setLoading(false);

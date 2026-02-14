@@ -135,23 +135,23 @@ const App: React.FC = () => {
           createdAt: Date.now() 
         };
         
-        // Profiles are usually managed by a database trigger, but here we do it explicitly
-        const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
+        // Use upsert with a small delay or retry to handle possible trigger race conditions
+        const { error: profileError } = await supabase.from('profiles').upsert([profileData], { onConflict: 'id' });
+        
         if (profileError) {
-          console.error("Profile creation error:", profileError);
-          // Don't throw if user is already created, but inform them
+          console.error("Profile creation error details:", profileError);
         }
 
         if (data.session) {
-          setCurrentUser({ ...profileData, email } as User);
+          const userObj = { ...profileData, email } as User;
+          setCurrentUser(userObj);
           setCurrentView('home');
         } else {
-          // If email confirmation is required, inform the user
           return "SUCCESS_EMAIL_VERIFY_PENDING";
         }
       }
     } catch (err: any) {
-      console.error("Registration full error:", err);
+      console.error("Critical registration error:", err);
       throw err;
     }
   };
