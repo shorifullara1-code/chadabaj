@@ -19,6 +19,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const translateError = (msg: string) => {
+    if (msg.includes('Email rate limit exceeded')) return 'ইমেইল লিমিট শেষ হয়েছে। দয়া করে ১ ঘণ্টা পর চেষ্টা করুন অথবা সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" অপশনটি বন্ধ করুন।';
+    if (msg.includes('User already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
+    if (msg.includes('Invalid login credentials')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
+    if (msg.includes('Password should be at least')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
+    return msg;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -31,7 +39,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         
         if (authError) {
-          setError(authError.message === 'Invalid login credentials' ? 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।' : authError.message);
+          setError(translateError(authError.message));
         } else if (data.user) {
           const { data: profile } = await supabase
             .from('profiles')
@@ -47,11 +55,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         }
       }
     } catch (err: any) {
-      if (err.message?.includes('Email rate limit exceeded')) {
-        setError('ইমেইল লিমিট শেষ হয়েছে। দয়া করে ১ ঘণ্টা পর চেষ্টা করুন অথবা সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" অপশনটি বন্ধ করুন।');
-      } else {
-        setError('একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।');
-      }
+      setError(translateError(err.message || 'একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।'));
     } finally {
       setLoading(false);
     }

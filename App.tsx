@@ -21,11 +21,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial data fetch
     fetchReports();
     fetchUsers();
 
-    // 1. Initial Session Check
     const checkInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -41,7 +39,6 @@ const App: React.FC = () => {
 
     checkInitialSession();
 
-    // 2. Listen for Auth State Changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         await fetchUserProfile(session.user.id, session.user.email!);
@@ -91,14 +88,15 @@ const App: React.FC = () => {
   };
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
-    
-    if (error) {
-      if (error.message.includes('Email rate limit exceeded')) {
-        throw new Error('ইমেইল লিমিট শেষ হয়েছে। সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" বন্ধ করুন।');
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password: pass,
+      options: {
+        data: { full_name: name, phone: phone }
       }
-      throw error;
-    }
+    });
+    
+    if (error) throw error;
 
     if (data.user) {
       const profileData = { 
@@ -113,16 +111,17 @@ const App: React.FC = () => {
       
       if (profileError) {
         console.error("Profile creation error:", profileError);
-        alert("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল তথ্যে সমস্যা হয়েছে। দয়া করে লগইন করুন।");
-        return;
+        // If error is duplicate ID, it means profile already exists, which is fine
+        if (profileError.code !== '23505') {
+          throw new Error("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল তথ্য সেভ করা সম্ভব হয়নি।");
+        }
       }
 
-      // If email confirmation is OFF in Supabase, we get a session immediately
       if (data.session) {
         setCurrentUser({ ...profileData, email } as User);
         setCurrentView('home');
       } else {
-        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করুন (যদি কনফার্মেশন অন থাকে) অথবা লগইন করার চেষ্টা করুন।");
+        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করুন অথবা লগইন করুন।");
         setCurrentView('login');
       }
     }
