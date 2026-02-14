@@ -26,7 +26,7 @@ const App: React.FC = () => {
         .from('reports')
         .select('*')
         .order('timestamp', { ascending: false });
-      if (error) throw error;
+      if (error) console.error("Report fetch error:", error.message);
       if (data) setReports(data as Report[]);
     } catch (e) {
       console.error("Fetch reports error:", e);
@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
-      if (error) throw error;
+      if (error) console.error("User fetch error:", error.message);
       if (data) setUsers(data as User[]);
     } catch (e) {
       console.error("Fetch users error:", e);
@@ -76,16 +76,22 @@ const App: React.FC = () => {
           fetchUsers()
         ]);
 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn("Session retrieval failed:", sessionError.message);
+        }
 
+        const session = sessionData?.session;
         if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
       } catch (e) {
         console.error("Initialization failed:", e);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          // Delay to ensure smooth UI transition
+          setTimeout(() => setIsLoading(false), 300);
+        }
       }
     };
 
@@ -130,9 +136,6 @@ const App: React.FC = () => {
       const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
       
       if (profileError) {
-        if (profileError.code === '42501') {
-          throw new Error("ইমেইল ভেরিফাই করা প্রয়োজন অথবা সেশন এ সমস্যা হয়েছে।");
-        }
         throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
       }
 
