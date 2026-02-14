@@ -29,7 +29,7 @@ const App: React.FC = () => {
         .order('timestamp', { ascending: false });
       if (!error && data) setReports(data as Report[]);
     } catch (e) {
-      console.error("Fetch reports error:", e);
+      console.warn("Fetch reports warning:", e);
     }
   }, []);
 
@@ -38,7 +38,7 @@ const App: React.FC = () => {
       const { data, error } = await supabase.from('profiles').select('*');
       if (!error && data) setUsers(data as User[]);
     } catch (e) {
-      console.error("Fetch users error:", e);
+      console.warn("Fetch users warning:", e);
     }
   }, []);
 
@@ -62,6 +62,11 @@ const App: React.FC = () => {
   }, [currentView]);
 
   useEffect(() => {
+    // Safety timeout: If it takes more than 5 seconds, stop loading
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000);
+
     if (initializationTriggered.current) return;
     initializationTriggered.current = true;
 
@@ -73,12 +78,14 @@ const App: React.FC = () => {
         if (session?.user && mounted) {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
-        fetchReports();
-        fetchUsers();
+        await Promise.all([fetchReports(), fetchUsers()]);
       } catch (e) {
-        console.error("Init failed:", e);
+        console.error("Initialization error:", e);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          clearTimeout(safetyTimer);
+        }
       }
     };
 
@@ -96,6 +103,7 @@ const App: React.FC = () => {
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
       authListener.subscription.unsubscribe();
     };
   }, [fetchReports, fetchUsers, fetchUserProfile]);
@@ -151,8 +159,9 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#2da65e]"></div>
+      <div className="flex flex-col items-center justify-center h-screen bg-white">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-[#2da65e] mb-4"></div>
+        <p className="text-gray-500 font-bold animate-pulse">লোড হচ্ছে, দয়া করে অপেক্ষা করুন...</p>
       </div>
     );
   }
