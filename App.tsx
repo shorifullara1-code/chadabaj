@@ -44,33 +44,41 @@ const App: React.FC = () => {
 
   const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     try {
+      // Try to get existing profile
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profile) {
-        setCurrentUser({
+        setCurrentUser({ id: userId, email, ...profile } as User);
+        if (profile.role === 'admin') setCurrentView('admin');
+        else if (currentView === 'login') setCurrentView('home');
+      } else {
+        // Fallback: If profile doesn't exist yet (trigger delay), create a temporary one
+        const fallbackProfile = {
           id: userId,
-          email: email,
-          ...profile
-        } as User);
+          name: email.split('@')[0],
+          phone: '',
+          role: 'user',
+          createdAt: Date.now()
+        };
+        // Attempt to insert the missing profile
+        await supabase.from('profiles').upsert([fallbackProfile]);
+        setCurrentUser({ id: userId, email, ...fallbackProfile } as User);
+        if (currentView === 'login') setCurrentView('home');
       }
     } catch (err) {
-      console.error("Error fetching profile:", err);
+      console.error("Error fetching/syncing profile:", err);
     }
-  }, []);
+  }, [currentView]);
 
   useEffect(() => {
     if (initializationTriggered.current) return;
     initializationTriggered.current = true;
 
     let mounted = true;
-
-    const safetyTimeout = setTimeout(() => {
-      if (mounted && isLoading) setIsLoading(false);
-    }, 3000);
 
     const initialize = async () => {
       try {
@@ -83,10 +91,7 @@ const App: React.FC = () => {
       } catch (e) {
         console.error("Init failed:", e);
       } finally {
-        if (mounted) {
-          clearTimeout(safetyTimeout);
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
       }
     };
 
@@ -104,7 +109,6 @@ const App: React.FC = () => {
 
     return () => {
       mounted = false;
-      clearTimeout(safetyTimeout);
       authListener.subscription.unsubscribe();
     };
   }, [fetchReports, fetchUsers, fetchUserProfile]);
@@ -121,15 +125,11 @@ const App: React.FC = () => {
       
       if (error) throw error;
 
-      // If session exists, user is logged in automatically (Confirmation OFF)
       if (data.session && data.user) {
         const profileData = { id: data.user.id, name, phone, role: 'user', createdAt: Date.now() };
-        await supabase.from('profiles').upsert([profileData], { onConflict: 'id' });
-        setCurrentUser({ ...profileData, email } as User);
-        setCurrentView('home');
+        await supabase.from('profiles').upsert([profileData]);
         return "SUCCESS";
       } else {
-        // Confirmation ON
         return "SUCCESS_EMAIL_VERIFY_PENDING";
       }
     } catch (err: any) {
