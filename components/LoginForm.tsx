@@ -37,25 +37,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   const translateError = (msg: string) => {
     const lowMsg = msg.toLowerCase();
     if (lowMsg.includes('rate limit')) {
-      return 'ইমেইল লিমিট শেষ হয়েছে (প্রতি ঘণ্টায় মাত্র ৩টি অ্যাকাউন্ট খোলা যায়)। দয়া করে ১ ঘণ্টা অপেক্ষা করুন অথবা নিচের "টেস্ট ইউজার" বাটনটি ব্যবহার করুন।';
+      return 'ইমেইল লিমিট শেষ হয়েছে (প্রতি ঘণ্টায় মাত্র ৩টি অ্যাকাউন্ট খোলা যায়)। দয়া করে ১ ঘণ্টা অপেক্ষা করে আবার চেষ্টা করুন।';
     }
     if (lowMsg.includes('already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
     if (lowMsg.includes('invalid login')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
     if (lowMsg.includes('at least 6 characters')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
     return msg;
-  };
-
-  const handleDemoAccess = (role: 'admin' | 'user') => {
-    setError('');
-    const demoUser: User = {
-      id: role === 'admin' ? 'demo-admin-id' : 'demo-user-id',
-      name: role === 'admin' ? 'Super Admin' : 'Test User',
-      email: role === 'admin' ? 'admin@chandabaj.com' : 'user@chandabaj.com',
-      role: role,
-      createdAt: Date.now(),
-      phone: '01700000000'
-    };
-    onLogin(demoUser);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,7 +82,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
           if (profile) {
             onLogin({ id: data.user.id, email: data.user.email!, ...profile } as User);
           } else {
-            setError('প্রোফাইল পাওয়া যায়নি। ডেমো ইউজার দিয়ে ট্রাই করুন।');
+            setError('প্রোফাইল পাওয়া যায়নি। দয়া করে সঠিক তথ্য দিয়ে পুনরায় চেষ্টা করুন।');
           }
         }
       }
@@ -131,7 +118,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         </h2>
         
         <p className="text-center text-gray-400 text-sm font-medium mb-8">
-          {isRegistering ? 'সহজেই সাইন-আপ করুন' : 'ইমেইল ও পাসওয়ার্ড দিন'}
+          {isRegistering ? 'সহজেই সাইন-আপ করুন' : 'আপনার ইমেইল ও পাসওয়ার্ড দিন'}
         </p>
 
         {successMsg && (
@@ -162,19 +149,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
           </button>
         </form>
 
-        <div className="mt-8 pt-8 border-t border-gray-100">
-           <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] text-center mb-4">দ্রুত টেস্ট করুন (Skip Rate Limit)</p>
-           <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => handleDemoAccess('user')} className="py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-[10px] font-black border border-gray-100 transition-all uppercase tracking-widest">
-                টেস্ট ইউজার
-              </button>
-              <button type="button" onClick={() => handleDemoAccess('admin')} className="py-3 bg-gray-900 hover:bg-black text-white rounded-xl text-[10px] font-black shadow-lg transition-all uppercase tracking-widest">
-                অ্যাডমিন প্রবেশ
-              </button>
-           </div>
-        </div>
-
-        <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }} className="w-full mt-6 py-2 text-gray-400 font-bold text-xs hover:text-[#2da65e] transition-colors">
+        <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }} className="w-full mt-8 py-2 text-gray-400 font-bold text-xs hover:text-[#2da65e] transition-colors">
           {isRegistering ? 'ইতিপূর্বেই অ্যাকাউন্ট আছে? লগইন করুন' : 'অ্যাকাউন্ট নেই? নতুন তৈরি করুন'}
         </button>
       </div>

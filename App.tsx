@@ -140,7 +140,6 @@ const App: React.FC = () => {
         
         if (profileError) {
           console.error("Profile creation warning:", profileError);
-          // We don't throw here because the Auth user IS created.
         }
 
         if (data.session) {
@@ -164,11 +163,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    if (currentUser?.id === 'demo-admin-id' || currentUser?.id === 'demo-user-id') {
-      setCurrentUser(null);
-      setCurrentView('home');
-      return;
-    }
     await supabase.auth.signOut();
   };
 
