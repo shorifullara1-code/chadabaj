@@ -1,0 +1,7 @@
+{
+  "name": "ChandaBaj - Corruption Reporting Platform",
+  "description": "A secure platform for reporting extortion (chandabaji) and corruption. Users can submit reports anonymously, and administrators can manage them with AI-assisted analysis.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
