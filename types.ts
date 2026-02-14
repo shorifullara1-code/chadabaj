@@ -2,28 +2,19 @@
 export type ReportStatus = 'Pending' | 'Investigating' | 'Resolved' | 'Rejected';
 export type UserRole = 'user' | 'admin';
 
-export interface ReportReview {
-  rating: number;
-  comment: string;
-  timestamp: number;
-}
-
 export interface User {
   id: string;
   name: string;
   email: string;
   phone?: string;
-  password?: string;
   role: UserRole;
   createdAt: number;
-  lastViewedResolved?: number; // To track notifications
 }
 
 export interface Report {
   id: string;
-  ticketNumber: string; // New: Unique readable ticket ID
+  ticketNumber: string;
   userId?: string; 
-  userEmail?: string; 
   title: string;
   category: string;
   location: string;
@@ -31,13 +22,20 @@ export interface Report {
   ward?: string; 
   description: string;
   date: string;
-  contactInfo?: string;
   status: ReportStatus;
   isAnonymous: boolean;
   priority: 'Low' | 'Medium' | 'High';
   aiSummary?: string;
   timestamp: number;
-  review?: ReportReview; // New: User review after resolution
+  // New mandatory fields for tracking without login
+  reporterName: string;
+  reporterEmail: string;
+  reporterPhone: string;
+  // Optional review field for tracking resolution quality
+  review?: {
+    rating: number;
+    comment: string;
+  };
 }
 
 export const CATEGORIES = [

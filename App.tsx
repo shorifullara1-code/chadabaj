@@ -13,7 +13,7 @@ import { supabase } from './services/supabase.ts';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'report' | 'admin' | 'login' | 'chadabaj' | 'my-reports' | 'news' | 'track'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'report' | 'admin' | 'login' | 'chadabaj' | 'news' | 'track'>('home');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [showToast, setShowToast] = useState(false);
@@ -44,7 +44,6 @@ const App: React.FC = () => {
 
   const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     try {
-      // Try to get existing profile
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -53,24 +52,12 @@ const App: React.FC = () => {
 
       if (profile) {
         setCurrentUser({ id: userId, email, ...profile } as User);
-        if (profile.role === 'admin') setCurrentView('admin');
-        else if (currentView === 'login') setCurrentView('home');
-      } else {
-        // Fallback: If profile doesn't exist yet (trigger delay), create a temporary one
-        const fallbackProfile = {
-          id: userId,
-          name: email.split('@')[0],
-          phone: '',
-          role: 'user',
-          createdAt: Date.now()
-        };
-        // Attempt to insert the missing profile
-        await supabase.from('profiles').upsert([fallbackProfile]);
-        setCurrentUser({ id: userId, email, ...fallbackProfile } as User);
-        if (currentView === 'login') setCurrentView('home');
+        if (profile.role === 'admin' && currentView === 'login') {
+          setCurrentView('admin');
+        }
       }
     } catch (err) {
-      console.error("Error fetching/syncing profile:", err);
+      console.error("Error fetching profile:", err);
     }
   }, [currentView]);
 
@@ -113,31 +100,6 @@ const App: React.FC = () => {
     };
   }, [fetchReports, fetchUsers, fetchUserProfile]);
 
-  const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({ 
-        email, 
-        password: pass,
-        options: {
-          data: { full_name: name, phone: phone }
-        }
-      });
-      
-      if (error) throw error;
-
-      if (data.session && data.user) {
-        const profileData = { id: data.user.id, name, phone, role: 'user', createdAt: Date.now() };
-        await supabase.from('profiles').upsert([profileData]);
-        return "SUCCESS";
-      } else {
-        return "SUCCESS_EMAIL_VERIFY_PENDING";
-      }
-    } catch (err: any) {
-      console.error("Registration failed:", err);
-      throw err;
-    }
-  };
-
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     if (user.role === 'admin') setCurrentView('admin');
@@ -152,8 +114,7 @@ const App: React.FC = () => {
     const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
     const report = {
       ticketNumber: ticketNo,
-      userId: currentUser?.id,
-      userEmail: currentUser?.email,
+      userId: currentUser?.id || null,
       ...newReportData,
       status: 'Pending',
       priority: newReportData.aiAnalysis?.priority || 'Medium',
@@ -187,7 +148,6 @@ const App: React.FC = () => {
   };
 
   const approvedReports = reports.filter(r => r.status === 'Investigating' || r.status === 'Resolved');
-  const myReports = reports.filter(r => r.userId === currentUser?.id);
 
   if (isLoading) {
     return (
@@ -212,9 +172,7 @@ const App: React.FC = () => {
         {currentView === 'login' ? (
           <LoginForm 
             onLogin={handleLogin} 
-            onRegister={handleRegister}
             onCancel={() => setCurrentView('home')} 
-            existingUsers={users}
           />
         ) : currentUser?.role === 'admin' && currentView === 'admin' ? (
           <AdminDashboard 
@@ -228,10 +186,7 @@ const App: React.FC = () => {
           <>
             {currentView === 'home' && (
               <>
-                <Hero onStartReport={() => {
-                  if (!currentUser) setCurrentView('login');
-                  else setCurrentView('report');
-                }} />
+                <Hero onStartReport={() => setCurrentView('report')} />
                 <section className="bg-gray-50 py-24 px-4 text-center">
                   <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
                     <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
@@ -251,13 +206,10 @@ const App: React.FC = () => {
               </>
             )}
             {currentView === 'report' && (
-              currentUser ? <ReportForm onSubmit={handleReportSubmit} /> : setCurrentView('login')
+              <ReportForm onSubmit={handleReportSubmit} />
             )}
             {currentView === 'track' && <TrackReport reports={reports} />}
             {currentView === 'chadabaj' && <ReportList reports={approvedReports} title="যাচাইকৃত চাঁদাবাজদের তালিকা" />}
-            {currentView === 'my-reports' && (
-              currentUser ? <ReportList reports={myReports} title="আমার টিকেটসমূহ" isPrivate /> : setCurrentView('login')
-            )}
             {currentView === 'news' && <NewsPage />}
           </>
         )}

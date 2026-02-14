@@ -149,6 +149,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ reports, users, onUpdat
                         {report.description}
                       </p>
 
+                      {/* Fixed: Now uses existing review property from Report interface */}
                       {report.review && (
                         <div className="mb-8 p-6 bg-yellow-50 rounded-3xl border border-yellow-100">
                            <div className="text-xs font-black text-yellow-600 uppercase mb-2">ইউজার রিভিউ:</div>
@@ -163,7 +164,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ reports, users, onUpdat
 
                       <div className="flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-gray-50">
                         <div className="flex items-center space-x-6 text-sm font-bold text-gray-400">
-                          <span className="flex items-center"><svg className="w-4 h-4 mr-1.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {report.isAnonymous ? 'গোপন' : (report.userEmail || 'ইউজার')}</span>
+                          {/* Fixed: Use reporterEmail as userEmail was not defined in Report interface */}
+                          <span className="flex items-center"><svg className="w-4 h-4 mr-1.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {report.isAnonymous ? 'গোপন' : (report.reporterEmail || 'ইউজার')}</span>
                           <span className="flex items-center"><svg className="w-4 h-4 mr-1.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {report.date}</span>
                         </div>
                         
