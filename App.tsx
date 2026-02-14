@@ -135,11 +135,12 @@ const App: React.FC = () => {
           createdAt: Date.now() 
         };
         
-        // Use upsert with a small delay or retry to handle possible trigger race conditions
+        // Profiles are sometimes created via DB trigger, but we upsert manually to be sure
         const { error: profileError } = await supabase.from('profiles').upsert([profileData], { onConflict: 'id' });
         
         if (profileError) {
-          console.error("Profile creation error details:", profileError);
+          console.error("Profile creation warning:", profileError);
+          // We don't throw here because the Auth user IS created.
         }
 
         if (data.session) {
@@ -151,7 +152,7 @@ const App: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error("Critical registration error:", err);
+      console.error("Registration failed:", err);
       throw err;
     }
   };
@@ -163,7 +164,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    if (currentUser?.id === 'demo-admin-id') {
+    if (currentUser?.id === 'demo-admin-id' || currentUser?.id === 'demo-user-id') {
       setCurrentUser(null);
       setCurrentView('home');
       return;

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabase.ts';
 
@@ -20,13 +20,42 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Safety timer to clear loading state if it hangs too long
+  useEffect(() => {
+    let timer: number;
+    if (loading) {
+      timer = window.setTimeout(() => {
+        if (loading) {
+          setLoading(false);
+          setError('সার্ভার থেকে রেসপন্স পেতে দেরি হচ্ছে। দয়া করে রিফ্রেশ করে আবার চেষ্টা করুন।');
+        }
+      }, 15000);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   const translateError = (msg: string) => {
-    if (msg.includes('Email rate limit exceeded')) return 'ইমেইল লিমিট শেষ হয়েছে। দয়া করে কিছুক্ষণ পর চেষ্টা করুন।';
-    if (msg.includes('User already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
-    if (msg.includes('Invalid login credentials')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
-    if (msg.includes('Password should be at least')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
-    if (msg.includes('Database error')) return 'সার্ভার সমস্যা। দয়া করে একটু পর আবার চেষ্টা করুন।';
+    const lowMsg = msg.toLowerCase();
+    if (lowMsg.includes('rate limit')) {
+      return 'ইমেইল লিমিট শেষ হয়েছে (প্রতি ঘণ্টায় মাত্র ৩টি অ্যাকাউন্ট খোলা যায়)। দয়া করে ১ ঘণ্টা অপেক্ষা করুন অথবা নিচের "টেস্ট ইউজার" বাটনটি ব্যবহার করুন।';
+    }
+    if (lowMsg.includes('already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
+    if (lowMsg.includes('invalid login')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
+    if (lowMsg.includes('at least 6 characters')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
     return msg;
+  };
+
+  const handleDemoAccess = (role: 'admin' | 'user') => {
+    setError('');
+    const demoUser: User = {
+      id: role === 'admin' ? 'demo-admin-id' : 'demo-user-id',
+      name: role === 'admin' ? 'Super Admin' : 'Test User',
+      email: role === 'admin' ? 'admin@chandabaj.com' : 'user@chandabaj.com',
+      role: role,
+      createdAt: Date.now(),
+      phone: '01700000000'
+    };
+    onLogin(demoUser);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,41 +67,26 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
     setLoading(true);
 
     try {
-      // --- DEMO ADMIN BYPASS ---
-      if (!isRegistering && email === 'admin@chandabaj.com' && password === 'admin789') {
-        onLogin({
-          id: 'demo-admin-id',
-          name: 'Super Admin',
-          email: 'admin@chandabaj.com',
-          role: 'admin',
-          createdAt: Date.now()
-        } as User);
-        return;
-      }
-
       if (isRegistering) {
         if (!name || !phone) {
           setError('দয়া করে নাম এবং মোবাইল নম্বর দিন।');
+          setLoading(false);
           return;
         }
-        console.log("Starting registration for:", email);
         const result = await onRegister(name, email, phone, password);
-        console.log("Registration result:", result);
-        
         if (result === "SUCCESS_EMAIL_VERIFY_PENDING") {
-          setSuccessMsg("আপনার অ্যাকাউন্ট তৈরি হয়েছে! দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন (Spam ফোল্ডারও চেক করতে পারেন)। এরপর লগইন করুন।");
+          setSuccessMsg("আপনার অ্যাকাউন্ট তৈরি হয়েছে! আপনার ইমেইল চেক করে ভেরিফাই করুন (Spam ফোল্ডারও চেক করতে পারেন)। এরপর লগইন করুন।");
           setIsRegistering(false);
           setEmail('');
           setPassword('');
         }
       } else {
-        console.log("Starting login for:", email);
         const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         
         if (authError) {
           throw authError;
         } else if (data.user) {
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', data.user.id)
@@ -81,13 +95,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
           if (profile) {
             onLogin({ id: data.user.id, email: data.user.email!, ...profile } as User);
           } else {
-            console.error("Profile fetch error:", profileError);
-            setError('প্রোফাইল তথ্য পাওয়া যায়নি। দয়া করে এডমিনের সাথে যোগাযোগ করুন।');
+            setError('প্রোফাইল পাওয়া যায়নি। ডেমো ইউজার দিয়ে ট্রাই করুন।');
           }
         }
       }
     } catch (err: any) {
-      console.error("LoginForm Error:", err);
+      console.error("Auth process error:", err);
       setError(translateError(err.message || 'একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।'));
     } finally {
       setLoading(false);
@@ -95,23 +108,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[70vh] px-4 py-12">
+    <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 py-12">
       <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-50 overflow-hidden relative">
-        {/* Loading Overlay */}
         {loading && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
             <div className="w-12 h-12 border-4 border-[#2da65e]/20 border-t-[#2da65e] rounded-full animate-spin mb-4"></div>
             <p className="font-black text-[#2da65e] animate-pulse">প্রসেস হচ্ছে...</p>
+            <p className="text-[10px] text-gray-400 mt-2">একটু অপেক্ষা করুন</p>
           </div>
         )}
 
         <div className="flex justify-center mb-6">
            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-colors ${isRegistering ? 'bg-blue-50 text-blue-600' : 'bg-[#2da65e]/10 text-[#2da65e]'}`}>
-              {isRegistering ? (
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-              ) : (
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              )}
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
            </div>
         </div>
         
@@ -120,65 +131,56 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
         </h2>
         
         <p className="text-center text-gray-400 text-sm font-medium mb-8">
-          {isRegistering ? 'নিচের তথ্যগুলো পূরণ করে সাইন-আপ করুন' : 'আপনার ইমেইল ও পাসওয়ার্ড দিন'}
+          {isRegistering ? 'সহজেই সাইন-আপ করুন' : 'ইমেইল ও পাসওয়ার্ড দিন'}
         </p>
 
         {successMsg && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl">
-            <p className="text-sm text-green-700 font-bold leading-relaxed">{successMsg}</p>
+          <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl animate-fade-in">
+            <p className="text-sm text-green-700 font-bold text-center leading-relaxed">{successMsg}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 rounded-2xl border border-red-100 animate-bounce">
+             <p className="text-xs text-red-600 font-black text-center leading-relaxed">{error}</p>
           </div>
         )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegistering && (
-            <div className="space-y-4 animate-fade-in-down">
-              <div className="relative">
-                <input required type="text" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-bold" placeholder="আপনার পুরো নাম" value={name} onChange={e => setName(e.target.value)} />
-              </div>
-              <div className="relative">
-                <input required type="tel" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-bold" placeholder="মোবাইল নম্বর" value={phone} onChange={e => setPhone(e.target.value)} />
-              </div>
+            <div className="space-y-4">
+              <input required type="text" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 font-bold" placeholder="আপনার নাম" value={name} onChange={e => setName(e.target.value)} />
+              <input required type="tel" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 font-bold" placeholder="মোবাইল নম্বর" value={phone} onChange={e => setPhone(e.target.value)} />
             </div>
           )}
           
-          <div className="relative">
-            <input required type="email" className={`w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:bg-white transition-all font-bold ${isRegistering ? 'focus:ring-blue-500/20' : 'focus:ring-[#2da65e]/20'}`} placeholder="ইমেইল অ্যাড্রেস" value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
+          <input required type="email" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 font-bold" placeholder="ইমেইল এড্রেস" value={email} onChange={e => setEmail(e.target.value)} />
+          <input required type="password" className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 font-bold" placeholder="পাসওয়ার্ড" value={password} onChange={e => setPassword(e.target.value)} />
           
-          <div className="relative">
-            <input required type="password" className={`w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:bg-white transition-all font-bold ${isRegistering ? 'focus:ring-blue-500/20' : 'focus:ring-[#2da65e]/20'}`} placeholder="পাসওয়ার্ড (৬+ অক্ষর)" value={password} onChange={e => setPassword(e.target.value)} />
-          </div>
-          
-          {error && (
-            <div className="p-4 bg-red-50 rounded-2xl border border-red-100 animate-bounce">
-               <p className="text-xs text-red-600 font-black leading-relaxed text-center">{error}</p>
-            </div>
-          )}
-
-          <button disabled={loading} type="submit" className={`w-full py-4 text-white font-black rounded-2xl shadow-xl transform active:scale-95 transition-all mt-4 ${
-            isRegistering ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100' : 'bg-[#2da65e] hover:bg-[#258a4d] shadow-green-100'
-          }`}>
+          <button disabled={loading} type="submit" className={`w-full py-4 text-white font-black rounded-2xl shadow-xl transition-all active:scale-95 ${isRegistering ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-100' : 'bg-[#2da65e] hover:bg-[#258a4d] shadow-green-100'}`}>
             {isRegistering ? 'অ্যাকাউন্ট তৈরি করুন' : 'লগইন করুন'}
           </button>
-
-          <div className="relative py-6">
-             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-             <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]"><span className="bg-white px-4 text-gray-300">অথবা</span></div>
-          </div>
-
-          <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }} className={`w-full py-3 font-black rounded-xl transition-all border-2 ${
-            isRegistering ? 'text-gray-500 border-gray-100 hover:bg-gray-50' : 'text-blue-600 border-blue-50 hover:bg-blue-50'
-          }`}>
-            {isRegistering ? 'আগে থেকেই অ্যাকাউন্ট আছে? লগইন' : 'নতুন অ্যাকাউন্ট তৈরি করুন'}
-          </button>
         </form>
+
+        <div className="mt-8 pt-8 border-t border-gray-100">
+           <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] text-center mb-4">দ্রুত টেস্ট করুন (Skip Rate Limit)</p>
+           <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => handleDemoAccess('user')} className="py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-[10px] font-black border border-gray-100 transition-all uppercase tracking-widest">
+                টেস্ট ইউজার
+              </button>
+              <button type="button" onClick={() => handleDemoAccess('admin')} className="py-3 bg-gray-900 hover:bg-black text-white rounded-xl text-[10px] font-black shadow-lg transition-all uppercase tracking-widest">
+                অ্যাডমিন প্রবেশ
+              </button>
+           </div>
+        </div>
+
+        <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(''); setSuccessMsg(''); }} className="w-full mt-6 py-2 text-gray-400 font-bold text-xs hover:text-[#2da65e] transition-colors">
+          {isRegistering ? 'ইতিপূর্বেই অ্যাকাউন্ট আছে? লগইন করুন' : 'অ্যাকাউন্ট নেই? নতুন তৈরি করুন'}
+        </button>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fade-in-down {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-down { animation: fade-in-down 0.3s ease-out forwards; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
       `}} />
     </div>
   );
