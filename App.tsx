@@ -62,7 +62,6 @@ const App: React.FC = () => {
   }, [currentView]);
 
   useEffect(() => {
-    // Safety timeout: If it takes more than 5 seconds, stop loading
     const safetyTimer = setTimeout(() => {
       setIsLoading(false);
     }, 5000);
@@ -119,28 +118,49 @@ const App: React.FC = () => {
   };
 
   const handleReportSubmit = async (newReportData: any) => {
-    const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
-    const report = {
-      ticketNumber: ticketNo,
-      userId: currentUser?.id || null,
-      ...newReportData,
-      status: 'Pending',
-      priority: newReportData.aiAnalysis?.priority || 'Medium',
-      aiSummary: newReportData.aiAnalysis?.summary || '',
-      timestamp: Date.now()
-    };
+    try {
+      const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      // Separating data to ensure no unwanted object properties (like aiAnalysis) are sent to Supabase
+      const { aiAnalysis, ...formFields } = newReportData;
 
-    const { error } = await supabase.from('reports').insert([report]);
-    if (error) {
-      alert("রিপোর্ট জমা দিতে সমস্যা হয়েছে: " + error.message);
-      return;
+      const reportToSave = {
+        ticketNumber: ticketNo,
+        userId: currentUser?.id || null,
+        title: formFields.title,
+        category: formFields.category,
+        location: formFields.location,
+        subLocation: formFields.subLocation || null,
+        ward: formFields.ward || null,
+        description: formFields.description,
+        date: formFields.date,
+        isAnonymous: formFields.isAnonymous,
+        reporterName: formFields.reporterName,
+        reporterEmail: formFields.reporterEmail,
+        reporterPhone: formFields.reporterPhone,
+        status: 'Pending',
+        priority: aiAnalysis?.priority || 'Medium',
+        aiSummary: aiAnalysis?.summary || '',
+        timestamp: Date.now()
+      };
+
+      const { data, error } = await supabase.from('reports').insert([reportToSave]).select();
+      
+      if (error) {
+        console.error("Supabase Error Details:", error);
+        alert(`রিপোর্ট জমা হতে সমস্যা হয়েছে: ${error.message}\nকোড: ${error.code}`);
+        return;
+      }
+
+      setLastSubmittedTicket(ticketNo);
+      setShowToast(true);
+      fetchReports();
+      setCurrentView('home');
+      setTimeout(() => setShowToast(false), 8000);
+    } catch (err: any) {
+      console.error("Submission crash:", err);
+      alert(`একটি এরর ঘটেছে: ${err.message}`);
     }
-
-    setLastSubmittedTicket(ticketNo);
-    setShowToast(true);
-    fetchReports();
-    setCurrentView('home');
-    setTimeout(() => setShowToast(false), 8000);
   };
 
   const handleUpdateStatus = async (id: string, status: ReportStatus) => {
