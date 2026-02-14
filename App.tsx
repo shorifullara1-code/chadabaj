@@ -118,13 +118,14 @@ const App: React.FC = () => {
   };
 
   const handleReportSubmit = async (newReportData: any) => {
+    // This promise must resolve or reject to stop the spinner in ReportForm
     try {
       const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
       
-      // Preparing the exact object based on our SQL table columns
       const reportToSave = {
         ticketNumber: ticketNo,
-        userId: currentUser?.id || null,
+        // Ensure userId is strictly null if not present, not undefined
+        userId: currentUser?.id ? currentUser.id : null,
         title: newReportData.title,
         category: newReportData.category,
         location: newReportData.location,
@@ -142,7 +143,7 @@ const App: React.FC = () => {
         timestamp: Date.now()
       };
 
-      console.log("Submitting to Supabase:", reportToSave);
+      console.log("Attempting insert:", reportToSave);
 
       const { data, error } = await supabase
         .from('reports')
@@ -150,20 +151,20 @@ const App: React.FC = () => {
         .select();
       
       if (error) {
-        console.error("Database Error:", error);
-        alert(`রিপোর্ট সেভ করতে সমস্যা হয়েছে!\nError: ${error.message}\nCode: ${error.code}`);
-        return;
+        throw error; // This will go to catch block
       }
 
-      console.log("Submission success:", data);
+      console.log("Insert success:", data);
       setLastSubmittedTicket(ticketNo);
       setShowToast(true);
-      await fetchReports();
-      setCurrentView('home');
+      await fetchReports(); // update list
+      setCurrentView('home'); // go home
       setTimeout(() => setShowToast(false), 8000);
+      
     } catch (err: any) {
-      console.error("Critical submission crash:", err);
-      alert(`একটি টেকনিক্যাল সমস্যা হয়েছে: ${err.message}`);
+      console.error("Submission Logic Error:", err);
+      // Re-throw so ReportForm knows it failed and can show alert
+      throw new Error(err.message || "Database insert failed");
     }
   };
 

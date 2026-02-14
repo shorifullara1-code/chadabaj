@@ -4,7 +4,7 @@ import { CATEGORIES, DISTRICTS, DHAKA_SUB_LOCATIONS, SAVAR_WARDS, Report } from 
 import { analyzeReport } from '../services/geminiService';
 
 interface ReportFormProps {
-  onSubmit: (report: Omit<Report, 'id' | 'timestamp' | 'status' | 'priority' | 'aiSummary' | 'ticketNumber'> & { aiAnalysis?: any }) => void;
+  onSubmit: (report: Omit<Report, 'id' | 'timestamp' | 'status' | 'priority' | 'aiSummary' | 'ticketNumber'> & { aiAnalysis?: any }) => Promise<void>;
 }
 
 const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
@@ -29,22 +29,43 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
 
     setIsSubmitting(true);
     try {
-      // Small logic to ensure Dhaka related fields are cleared if location isn't Dhaka
       const finalData = { ...formData };
       if (finalData.location !== 'Dhaka') {
         finalData.subLocation = '';
         finalData.ward = '';
       }
 
-      const analysis = await analyzeReport(finalData.description);
+      // AI Analysis with Timeout (Max 3 seconds)
+      // যদি AI ৩ সেকেন্ডের মধ্যে রেসপন্স না করে, তাহলে আমরা স্কিপ করে ম্যানুয়াল রিপোর্ট জমা নেব।
+      let analysis = null;
+      try {
+        const aiPromise = analyzeReport(finalData.description);
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
+        
+        analysis = await Promise.race([aiPromise, timeoutPromise]);
+      } catch (aiError) {
+        console.warn("AI skipped due to timeout/error", aiError);
+      }
+
+      // Default analysis if AI fails
+      if (!analysis) {
+        analysis = {
+          priority: 'Medium',
+          summary: 'AI বিশ্লেষণ সম্ভব হয়নি, ম্যানুয়াল রিভিউ প্রয়োজন।',
+          categorySuggestion: 'Other'
+        };
+      }
       
       await onSubmit({
         ...finalData,
         aiAnalysis: analysis
       });
-    } catch (err) {
+
+    } catch (err: any) {
       console.error("Form submission error:", err);
+      alert(`দুঃখিত, রিপোর্ট জমা দেওয়া যায়নি।\nকারণ: ${err.message || "অজানা ত্রুটি"}`);
     } finally {
+      // Ensure spinner stops if component is still mounted
       setIsSubmitting(false);
     }
   };
@@ -198,7 +219,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
           {isSubmitting ? (
             <div className="flex items-center justify-center">
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-              প্রসেস হচ্ছে...
+              যাচাই এবং প্রসেস করা হচ্ছে...
             </div>
           ) : 'রিপোর্ট জমা দিন'}
         </button>
