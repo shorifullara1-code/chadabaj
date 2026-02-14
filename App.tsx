@@ -68,17 +68,16 @@ const App: React.FC = () => {
 
     let mounted = true;
 
-    // Faster fail-safe: 3 seconds
+    // Ultral-fast fail-safe: 2 seconds
     const safetyTimeout = setTimeout(() => {
       if (mounted && isLoading) {
-        console.warn("Loading timeout - showing app anyway");
         setIsLoading(false);
       }
-    }, 3000);
+    }, 2000);
 
     const initialize = async () => {
       try {
-        // Run essential auth check first
+        // Essential check: current session
         const { data: sessionData } = await supabase.auth.getSession();
         const session = sessionData?.session;
 
@@ -86,15 +85,16 @@ const App: React.FC = () => {
           await fetchUserProfile(session.user.id, session.user.email!);
         }
 
-        // Run non-essential data loading in parallel without blocking UI
+        // Parallel non-blocking fetches
         fetchReports();
         fetchUsers();
       } catch (e) {
-        console.error("Initialization error:", e);
+        console.error("Init failed:", e);
       } finally {
         if (mounted) {
           clearTimeout(safetyTimeout);
-          setIsLoading(false);
+          // Add a tiny delay for smooth UI transition
+          setTimeout(() => setIsLoading(false), 100);
         }
       }
     };
@@ -158,6 +158,12 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    // If it's a demo admin, just reset state
+    if (currentUser?.id === 'demo-admin-id') {
+      setCurrentUser(null);
+      setCurrentView('home');
+      return;
+    }
     await supabase.auth.signOut();
   };
 
@@ -206,8 +212,8 @@ const App: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
-          <p className="text-gray-400 font-bold text-sm">লোডিং হচ্ছে...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
+          <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">লোড হচ্ছে...</p>
         </div>
       </div>
     );

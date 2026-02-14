@@ -20,11 +20,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
   const [loading, setLoading] = useState(false);
 
   const translateError = (msg: string) => {
-    if (msg.includes('Email rate limit exceeded')) return 'ইমেইল লিমিট শেষ হয়েছে। দয়া করে ১ ঘণ্টা পর চেষ্টা করুন অথবা সুপাবেস ড্যাশবোর্ড থেকে "Confirm Email" অপশনটি বন্ধ করুন।';
+    if (msg.includes('Email rate limit exceeded')) return 'ইমেইল লিমিট শেষ হয়েছে। দয়া করে কিছুক্ষণ পর চেষ্টা করুন।';
     if (msg.includes('User already registered')) return 'এই ইমেইল দিয়ে ইতিপূর্বেই অ্যাকাউন্ট খোলা হয়েছে।';
     if (msg.includes('Invalid login credentials')) return 'ভুল ইমেইল বা পাসওয়ার্ড দেওয়া হয়েছে।';
     if (msg.includes('Password should be at least')) return 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।';
-    if (msg.includes('প্রোফাইল সেভ করা যায়নি')) return 'অ্যাকাউন্ট তৈরি হয়েছে কিন্তু ডাটাবেসে প্রোফাইল সেভ করা যায়নি। সম্ভবত ইমেইল ভেরিফাই করা হয়নি অথবা RLS পলিসি অনুমতি দিচ্ছে না।';
     return msg;
   };
 
@@ -34,6 +33,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
     setLoading(true);
 
     try {
+      // --- DEMO ADMIN BYPASS START ---
+      if (!isRegistering && email === 'admin@chandabaj.com' && password === 'admin789') {
+        onLogin({
+          id: 'demo-admin-id',
+          name: 'Super Admin',
+          email: 'admin@chandabaj.com',
+          role: 'admin',
+          createdAt: Date.now()
+        } as User);
+        return;
+      }
+      // --- DEMO ADMIN BYPASS END ---
+
       if (isRegistering) {
         await onRegister(name, email, phone, password);
       } else {
@@ -72,7 +84,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onRegister, onCancel, ex
               </svg>
            </div>
         </div>
-        <h2 className="text-3xl font-black text-gray-900 text-center mb-6">{isRegistering ? 'নতুন অ্যাকাউন্ট' : 'লগইন করুন'}</h2>
+        <h2 className="text-3xl font-black text-gray-900 text-center mb-2">{isRegistering ? 'নতুন অ্যাকাউন্ট' : 'লগইন করুন'}</h2>
+        {!isRegistering && (
+          <p className="text-center text-[10px] text-gray-400 mb-6 font-bold uppercase tracking-widest">Demo Admin: admin@chandabaj.com / admin789</p>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-5">
           {isRegistering && (
