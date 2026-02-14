@@ -21,33 +21,58 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchSession();
+    // Initial data fetch
     fetchReports();
     fetchUsers();
+
+    // 1. Initial Session Check
+    const checkInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchUserProfile(session.user.id, session.user.email!);
+      }
+      setIsLoading(false);
+    };
+
+    checkInitialSession();
+
+    // 2. Listen for Auth State Changes (Login, Logout, Refresh)
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await fetchUserProfile(session.user.id, session.user.email!);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setCurrentView('home');
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  const fetchSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const { data: profile } = await supabase
+  const fetchUserProfile = async (userId: string, email: string) => {
+    try {
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', userId)
         .single();
 
       if (profile) {
         setCurrentUser({
-          id: session.user.id,
-          email: session.user.email!,
+          id: userId,
+          email: email,
           ...profile
         } as User);
       }
+    } catch (err) {
+      console.error("Error fetching profile:", err);
     }
-    setIsLoading(false);
   };
 
   const fetchReports = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('reports')
       .select('*')
       .order('timestamp', { ascending: false });
@@ -68,7 +93,14 @@ const App: React.FC = () => {
     }
     if (data.user) {
       const profileData = { id: data.user.id, name, phone, role: 'user', createdAt: Date.now() };
-      await supabase.from('profiles').insert([profileData]);
+      const { error: profileError } = await supabase.from('profiles').insert([profileData]);
+      
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        alert("অ্যাকাউন্ট তৈরি হয়েছে কিন্তু প্রোফাইল সেটআপে সমস্যা হয়েছে। দয়া করে আবার লগইন করুন।");
+        return;
+      }
+
       setCurrentUser({ ...profileData, email } as User);
       setCurrentView('home');
     }
@@ -82,8 +114,6 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setCurrentUser(null);
-    setCurrentView('home');
   };
 
   const handleReportSubmit = async (newReportData: any) => {
@@ -127,7 +157,13 @@ const App: React.FC = () => {
   const approvedReports = reports.filter(r => r.status === 'Investigating' || r.status === 'Resolved');
   const myReports = reports.filter(r => r.userId === currentUser?.id);
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2da65e]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
