@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar.tsx';
 import Hero from './components/Hero.tsx';
 import ReportForm from './components/ReportForm.tsx';
@@ -20,40 +20,29 @@ const App: React.FC = () => {
   const [lastSubmittedTicket, setLastSubmittedTicket] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchReports();
-    fetchUsers();
-
-    const checkInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          await fetchUserProfile(session.user.id, session.user.email!);
-        }
-      } catch (e) {
-        console.error("Session check failed", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkInitialSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetchUserProfile(session.user.id, session.user.email!);
-      } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        setCurrentView('home');
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+  const fetchReports = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('reports')
+        .select('*')
+        .order('timestamp', { ascending: false });
+      
+      if (data) setReports(data as Report[]);
+    } catch (e) {
+      console.error("Fetch reports error:", e);
+    }
   }, []);
 
-  const fetchUserProfile = async (userId: string, email: string) => {
+  const fetchUsers = useCallback(async () => {
+    try {
+      const { data } = await supabase.from('profiles').select('*');
+      if (data) setUsers(data as User[]);
+    } catch (e) {
+      console.error("Fetch users error:", e);
+    }
+  }, []);
+
+  const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -71,24 +60,45 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Error fetching profile:", err);
     }
-  };
+  }, []);
 
-  const fetchReports = async () => {
-    const { data } = await supabase
-      .from('reports')
-      .select('*')
-      .order('timestamp', { ascending: false });
-    
-    if (data) setReports(data as Report[]);
-  };
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        // Parallel data loading
+        await Promise.all([
+          fetchReports(),
+          fetchUsers()
+        ]);
 
-  const fetchUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*');
-    if (data) setUsers(data as User[]);
-  };
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await fetchUserProfile(session.user.id, session.user.email!);
+        }
+      } catch (e) {
+        console.error("Initialization failed:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initialize();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await fetchUserProfile(session.user.id, session.user.email!);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setCurrentView('home');
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [fetchReports, fetchUsers, fetchUserProfile]);
 
   const handleRegister = async (name: string, email: string, phone: string, pass: string) => {
-    // 1. Sign up the user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password: pass,
@@ -108,15 +118,11 @@ const App: React.FC = () => {
         createdAt: Date.now() 
       };
       
-      // 2. Try to insert/upsert profile data
-      // We use upsert to prevent errors if a trigger already created the profile
       const { error: profileError } = await supabase.from('profiles').upsert([profileData]);
       
       if (profileError) {
-        console.error("Detailed Profile Error:", profileError);
-        // If it's a permission error (RLS), it's often because email isn't confirmed
         if (profileError.code === '42501') {
-          throw new Error("আপনার ইমেইল ভেরিফাই করা প্রয়োজন অথবা সুপাবেস ড্যাশবোর্ড থেকে 'Confirm Email' অপশনটি বন্ধ করুন।");
+          throw new Error("ইমেইল ভেরিফাই করা প্রয়োজন অথবা সেশন এ সমস্যা হয়েছে।");
         }
         throw new Error(`প্রোফাইল সেভ করা যায়নি: ${profileError.message}`);
       }
@@ -125,13 +131,13 @@ const App: React.FC = () => {
         setCurrentUser({ ...profileData, email } as User);
         setCurrentView('home');
       } else {
-        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন (যদি কনফার্মেশন অন থাকে) অথবা সরাসরি লগইন করার চেষ্টা করুন।");
+        alert("অ্যাকাউন্ট তৈরি হয়েছে। দয়া করে আপনার ইমেইল চেক করে ভেরিফাই করুন অথবা সরাসরি লগইন করুন।");
         setCurrentView('login');
       }
     }
   };
 
-  const handleLogin = async (user: User) => {
+  const handleLogin = (user: User) => {
     setCurrentUser(user);
     if (user.role === 'admin') setCurrentView('admin');
     else setCurrentView('home');
@@ -185,7 +191,10 @@ const App: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2da65e]"></div>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#2da65e] mb-4"></div>
+          <p className="text-gray-500 font-black animate-pulse">চান্দাবাজ লোড হচ্ছে...</p>
+        </div>
       </div>
     );
   }
