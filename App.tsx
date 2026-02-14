@@ -121,45 +121,49 @@ const App: React.FC = () => {
     try {
       const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
       
-      // Separating data to ensure no unwanted object properties (like aiAnalysis) are sent to Supabase
-      const { aiAnalysis, ...formFields } = newReportData;
-
+      // Preparing the exact object based on our SQL table columns
       const reportToSave = {
         ticketNumber: ticketNo,
         userId: currentUser?.id || null,
-        title: formFields.title,
-        category: formFields.category,
-        location: formFields.location,
-        subLocation: formFields.subLocation || null,
-        ward: formFields.ward || null,
-        description: formFields.description,
-        date: formFields.date,
-        isAnonymous: formFields.isAnonymous,
-        reporterName: formFields.reporterName,
-        reporterEmail: formFields.reporterEmail,
-        reporterPhone: formFields.reporterPhone,
+        title: newReportData.title,
+        category: newReportData.category,
+        location: newReportData.location,
+        subLocation: newReportData.subLocation || null,
+        ward: newReportData.ward || null,
+        description: newReportData.description,
+        date: newReportData.date,
+        isAnonymous: newReportData.isAnonymous || false,
+        reporterName: newReportData.reporterName,
+        reporterEmail: newReportData.reporterEmail,
+        reporterPhone: newReportData.reporterPhone,
         status: 'Pending',
-        priority: aiAnalysis?.priority || 'Medium',
-        aiSummary: aiAnalysis?.summary || '',
+        priority: newReportData.aiAnalysis?.priority || 'Medium',
+        aiSummary: newReportData.aiAnalysis?.summary || '',
         timestamp: Date.now()
       };
 
-      const { data, error } = await supabase.from('reports').insert([reportToSave]).select();
+      console.log("Submitting to Supabase:", reportToSave);
+
+      const { data, error } = await supabase
+        .from('reports')
+        .insert([reportToSave])
+        .select();
       
       if (error) {
-        console.error("Supabase Error Details:", error);
-        alert(`রিপোর্ট জমা হতে সমস্যা হয়েছে: ${error.message}\nকোড: ${error.code}`);
+        console.error("Database Error:", error);
+        alert(`রিপোর্ট সেভ করতে সমস্যা হয়েছে!\nError: ${error.message}\nCode: ${error.code}`);
         return;
       }
 
+      console.log("Submission success:", data);
       setLastSubmittedTicket(ticketNo);
       setShowToast(true);
-      fetchReports();
+      await fetchReports();
       setCurrentView('home');
       setTimeout(() => setShowToast(false), 8000);
     } catch (err: any) {
-      console.error("Submission crash:", err);
-      alert(`একটি এরর ঘটেছে: ${err.message}`);
+      console.error("Critical submission crash:", err);
+      alert(`একটি টেকনিক্যাল সমস্যা হয়েছে: ${err.message}`);
     }
   };
 

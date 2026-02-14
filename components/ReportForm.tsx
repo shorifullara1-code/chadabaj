@@ -25,16 +25,28 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
-    
-    const analysis = await analyzeReport(formData.description);
-    
-    onSubmit({
-      ...formData,
-      aiAnalysis: analysis
-    });
-    
-    setIsSubmitting(false);
+    try {
+      // Small logic to ensure Dhaka related fields are cleared if location isn't Dhaka
+      const finalData = { ...formData };
+      if (finalData.location !== 'Dhaka') {
+        finalData.subLocation = '';
+        finalData.ward = '';
+      }
+
+      const analysis = await analyzeReport(finalData.description);
+      
+      await onSubmit({
+        ...finalData,
+        aiAnalysis: analysis
+      });
+    } catch (err) {
+      console.error("Form submission error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -45,7 +57,6 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Reporter Information - MANDATORY */}
         <div className="p-8 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
           <h3 className="text-sm font-black text-[#2da65e] uppercase tracking-widest mb-4">আপনার তথ্য (গোপন রাখা হবে)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -83,7 +94,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
               onChange={(e) => setFormData({...formData, isAnonymous: e.target.checked})}
             />
             <label htmlFor="isAnonymous" className="text-xs font-bold text-gray-500 cursor-pointer">
-              প্রকাশ্যে আমার নাম গোপন রাখুন (Anonymize my identity on public list)
+              প্রকাশ্যে আমার নাম গোপন রাখুন
             </label>
           </div>
         </div>
@@ -124,7 +135,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
                   setFormData({
                     ...formData, 
                     location: loc, 
-                    subLocation: loc === 'Dhaka' ? DHAKA_SUB_LOCATIONS[0] : '',
+                    subLocation: '',
                     ward: ''
                   });
                 }}
@@ -139,6 +150,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 px-2">ইউনিয়ন/পৌরসভা</label>
                 <select
+                  required
                   className="w-full px-6 py-4 bg-green-50/30 border border-green-100 rounded-2xl outline-none font-bold appearance-none"
                   value={formData.subLocation}
                   onChange={(e) => setFormData({...formData, subLocation: e.target.value, ward: ''})}
@@ -171,7 +183,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
               required
               rows={5}
               className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-[#2da65e]/20 font-medium leading-relaxed"
-              placeholder="কোথায়, কি ঘটেছিল বিস্তারিত লিখুন। পূর্ণ ঠিকানা সহ দিতে পারলে ভালো হয়।"
+              placeholder="কোথায়, কি ঘটেছিল বিস্তারিত লিখুন।"
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
@@ -186,18 +198,11 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
           {isSubmitting ? (
             <div className="flex items-center justify-center">
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-              AI প্রসেস করছে...
+              প্রসেস হচ্ছে...
             </div>
           ) : 'রিপোর্ট জমা দিন'}
         </button>
       </form>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes fade-in-down {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-down { animation: fade-in-down 0.3s ease-out forwards; }
-      `}} />
     </div>
   );
 };
