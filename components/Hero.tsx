@@ -12,13 +12,21 @@ const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
           <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
-            {/* Added Location Badge */}
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-green-50 rounded-full border border-green-100 mb-6 animate-fade-in-up">
+            {/* Added Location Badge - Updated for better visibility */}
+            <div className="inline-flex items-center space-x-3 px-5 py-3 bg-white rounded-full border-2 border-[#2da65e] mb-6 animate-fade-in-up shadow-md">
               <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
               </span>
-              <span className="text-[#2da65e] font-black text-xs uppercase tracking-[0.2em]">Dhaka 19 | Savar-Ashulia Focus Area</span>
+              <div className="flex items-center">
+                <span className="text-black font-black text-lg uppercase tracking-wide mr-2">
+                  DHAKA 19
+                </span>
+                <span className="text-[#2da65e] text-lg font-bold mr-2">|</span>
+                <span className="text-gray-700 font-bold text-sm uppercase tracking-widest">
+                  Savar-Ashulia
+                </span>
+              </div>
             </div>
 
             <h1 className="text-4xl tracking-tight font-black text-gray-900 sm:text-5xl md:text-6xl animate-fade-in-up">
@@ -26,7 +34,7 @@ const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
               <span className="block text-[#2da65e] xl:inline leading-tight">গড়ার শপথ নিন</span>
             </h1>
             <p className="mt-6 text-lg text-gray-500 sm:text-xl font-medium animate-fade-in-up delay-100">
-              ভয় নয়, প্রতিরোধ। ঢাকা ১৯ (সাভার-আশুলিয়া) সহ আপনার চারপাশের যেকোনো চাঁদাবাজি বা দুর্নীতির খবর আমাদের জানান। আপনার একটি গোপন রিপোর্ট বদলে দিতে পারে সমাজ।
+              ভয় নয়, প্রতিরোধ। <span className="text-gray-900 font-black">ঢাকা ১৯</span> (সাভার-আশুলিয়া) সহ আপনার চারপাশের যেকোনো চাঁদাবাজি বা দুর্নীতির খবর আমাদের জানান। আপনার একটি গোপন রিপোর্ট বদলে দিতে পারে সমাজ।
             </p>
             <div className="mt-10 sm:flex sm:justify-center lg:justify-start space-y-4 sm:space-y-0 sm:space-x-4 animate-fade-in-up delay-200">
               <button
@@ -54,15 +62,17 @@ const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
           
           <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
             <div className="relative mx-auto w-full rounded-3xl shadow-2xl overflow-hidden animate-float">
+              {/* Updated Image to Savar National Memorial */}
               <img
-                className="w-full"
-                src="https://images.unsplash.com/photo-1577985043696-8bd54d9f093f?auto=format&fit=crop&q=80&w=800"
-                alt="Safe Community"
+                className="w-full h-[400px] object-cover"
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/National_Martyrs%27_Memorial_of_Bangladesh.jpg/1200px-National_Martyrs%27_Memorial_of_Bangladesh.jpg"
+                alt="Savar National Memorial"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-8">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-8">
                 <div className="text-white">
-                  <p className="text-sm font-bold uppercase tracking-widest text-green-400">আপনার নিরাপত্তা আমাদের অগ্রাধিকার</p>
-                  <h3 className="text-xl font-bold mt-1">ঢাকা ১৯ - সাভার-আশুলিয়ার মানুষের কণ্ঠস্বর</h3>
+                  <p className="text-sm font-bold uppercase tracking-widest text-green-400 mb-1">আপনার নিরাপত্তা আমাদের অগ্রাধিকার</p>
+                  <h3 className="text-2xl font-black">জাতীয় স্মৃতিসৌধ, সাভার</h3>
+                  <p className="text-gray-300 text-sm font-medium mt-1">ঢাকা ১৯ - সাভার-আশুলিয়ার মানুষের কণ্ঠস্বর</p>
                 </div>
               </div>
             </div>
