@@ -11,6 +11,15 @@ export interface User {
   createdAt: number;
 }
 
+export interface Review {
+  id?: string;
+  report_id: string;
+  user_name: string;
+  rating: number;
+  comment: string;
+  created_at?: string;
+}
+
 export interface Report {
   id: string;
   ticketNumber: string;
@@ -31,7 +40,7 @@ export interface Report {
   reporterName: string;
   reporterEmail: string;
   reporterPhone: string;
-  // Optional review field for tracking resolution quality
+  // Optional review field for tracking resolution quality (Legacy/Single)
   review?: {
     rating: number;
     comment: string;
