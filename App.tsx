@@ -230,7 +230,8 @@ const App: React.FC = () => {
     }
   };
 
-  const approvedReports = reports.filter(r => r.status === 'Investigating' || r.status === 'Resolved');
+  // Only show Resolved reports in the public list
+  const approvedReports = reports.filter(r => r.status === 'Resolved');
 
   if (isLoading) {
     return (
