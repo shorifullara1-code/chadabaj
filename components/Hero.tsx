@@ -3,9 +3,10 @@ import React from 'react';
 
 interface HeroProps {
   onStartReport: () => void;
+  totalUsers?: number;
 }
 
-const Hero: React.FC<HeroProps> = ({ onStartReport }) => {
+const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
   return (
     <div className="relative bg-white overflow-hidden pt-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -47,7 +48,7 @@ const Hero: React.FC<HeroProps> = ({ onStartReport }) => {
                   <img key={i} className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src={`https://i.pravatar.cc/100?img=${i+10}`} alt="" />
                 ))}
               </div>
-              <span>৫০০০+ নাগরিক আমাদের সাথে যুক্ত</span>
+              <span>{totalUsers} জন নাগরিক আমাদের সাথে যুক্ত</span>
             </div>
           </div>
           

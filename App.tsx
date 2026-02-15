@@ -44,6 +44,7 @@ const App: React.FC = () => {
 
   const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     try {
+      // 1. Try to get existing profile
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -55,9 +56,30 @@ const App: React.FC = () => {
         if (profile.role === 'admin' && currentView === 'login') {
           setCurrentView('admin');
         }
+      } else {
+        // 2. Fallback: If profile missing (DB trigger failed/removed), create it from client-side
+        console.log("Profile missing, creating default profile...");
+        const newProfile = {
+            id: userId,
+            email: email,
+            role: 'user', // Default role
+            name: 'New User',
+            createdAt: Date.now()
+        };
+        
+        const { error: insertError } = await supabase
+            .from('profiles')
+            .insert([newProfile]);
+
+        if (!insertError) {
+            setCurrentUser(newProfile as User);
+            console.log("Created default profile successfully.");
+        } else {
+            console.error("Failed to auto-create profile:", insertError);
+        }
       }
     } catch (err) {
-      console.error("Error fetching profile:", err);
+      console.error("Error fetching/creating profile:", err);
     }
   }, [currentView]);
 
@@ -118,13 +140,11 @@ const App: React.FC = () => {
   };
 
   const handleReportSubmit = async (newReportData: any) => {
-    // This promise must resolve or reject to stop the spinner in ReportForm
     try {
       const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
       
       const reportToSave = {
         ticketNumber: ticketNo,
-        // Ensure userId is strictly null if not present, not undefined
         userId: currentUser?.id ? currentUser.id : null,
         title: newReportData.title,
         category: newReportData.category,
@@ -151,19 +171,18 @@ const App: React.FC = () => {
         .select();
       
       if (error) {
-        throw error; // This will go to catch block
+        throw error;
       }
 
       console.log("Insert success:", data);
       setLastSubmittedTicket(ticketNo);
       setShowToast(true);
-      await fetchReports(); // update list
-      setCurrentView('home'); // go home
+      await fetchReports();
+      setCurrentView('home');
       setTimeout(() => setShowToast(false), 8000);
       
     } catch (err: any) {
       console.error("Submission Logic Error:", err);
-      // Re-throw so ReportForm knows it failed and can show alert
       throw new Error(err.message || "Database insert failed");
     }
   };
@@ -220,19 +239,19 @@ const App: React.FC = () => {
           <>
             {currentView === 'home' && (
               <>
-                <Hero onStartReport={() => setCurrentView('report')} />
+                <Hero onStartReport={() => setCurrentView('report')} totalUsers={users.length} />
                 <section className="bg-gray-50 py-24 px-4 text-center">
                   <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
                     <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
-                      <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.length + 371}</div>
+                      <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.length}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">মোট রিপোর্ট জমা</div>
                     </div>
                     <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
-                      <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.filter(r => r.status === 'Resolved').length + 124}</div>
+                      <div className="text-6xl font-black text-[#2da65e] mb-4">{reports.filter(r => r.status === 'Resolved').length}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">সফল অভিযান</div>
                     </div>
                     <div className="p-10 rounded-3xl bg-white shadow-sm border border-gray-100 transform hover:-translate-y-2 transition-all">
-                      <div className="text-6xl font-black text-[#2da65e] mb-4">{users.length + 500}</div>
+                      <div className="text-6xl font-black text-[#2da65e] mb-4">{users.length}</div>
                       <div className="text-gray-500 font-bold uppercase tracking-widest text-sm">সক্রিয় ইউজার</div>
                     </div>
                   </div>
