@@ -37,9 +37,18 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...newFiles]);
+      // Limit file size (e.g., 10MB per file)
+      const validFiles = newFiles.filter(file => {
+          if (file.size > 10 * 1024 * 1024) {
+              alert(`ফাইল ${file.name} অনেক বড়। ১০ এমবির নিচে ফাইল দিন।`);
+              return false;
+          }
+          return true;
+      });
 
-      const newPreviews = newFiles.map(file => ({
+      setFiles(prev => [...prev, ...validFiles]);
+
+      const newPreviews = validFiles.map(file => ({
         url: URL.createObjectURL(file),
         type: file.type
       }));
@@ -96,7 +105,13 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
 
     } catch (err: any) {
       console.error("Form submission error:", err);
-      alert(`দুঃখিত, রিপোর্ট জমা দেওয়া যায়নি।\nকারণ: ${err.message || "অজানা ত্রুটি"}`);
+      const errorMessage = err.message || JSON.stringify(err);
+      // Show specific error if it's about missing columns
+      if (errorMessage.includes('column')) {
+          alert(`সিস্টেম এরর: ডাটাবেজ কনফিগারেশন সমস্যা। অ্যাডমিনকে জানান: ${errorMessage}`);
+      } else {
+          alert(`দুঃখিত, রিপোর্ট জমা দেওয়া যায়নি।\nকারণ: ${errorMessage}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
