@@ -139,10 +139,40 @@ const App: React.FC = () => {
     await supabase.auth.signOut();
   };
 
-  const handleReportSubmit = async (newReportData: any) => {
+  const handleReportSubmit = async (newReportData: any, files: File[]) => {
     try {
       const ticketNo = `CB-${Math.floor(100000 + Math.random() * 900000)}`;
       
+      // Upload evidence files if any
+      const evidence = [];
+      if (files && files.length > 0) {
+        for (const file of files) {
+          try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${ticketNo}/${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+              .from('evidence')
+              .upload(fileName, file);
+
+            if (uploadError) {
+              console.error('File upload failed:', uploadError);
+              continue;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('evidence')
+              .getPublicUrl(fileName);
+
+            evidence.push({
+              type: file.type.startsWith('video/') ? 'video' : 'image',
+              url: publicUrl
+            });
+          } catch (uploadErr) {
+            console.error('Error uploading file:', uploadErr);
+          }
+        }
+      }
+
       const reportToSave = {
         ticketNumber: ticketNo,
         userId: currentUser?.id ? currentUser.id : null,
@@ -160,7 +190,8 @@ const App: React.FC = () => {
         status: 'Pending',
         priority: newReportData.aiAnalysis?.priority || 'Medium',
         aiSummary: newReportData.aiAnalysis?.summary || '',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        evidence: evidence
       };
 
       console.log("Attempting insert:", reportToSave);

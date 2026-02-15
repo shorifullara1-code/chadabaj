@@ -149,7 +149,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ reports, users, onUpdat
                         {report.description}
                       </p>
 
-                      {/* Fixed: Now uses existing review property from Report interface */}
+                      {/* Evidence Display Section */}
+                      {report.evidence && report.evidence.length > 0 && (
+                        <div className="mb-8 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                          <h4 className="text-xs font-black text-gray-400 uppercase mb-4 tracking-widest">সংযুক্ত প্রমাণাদি ({report.evidence.length})</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {report.evidence.map((item, idx) => (
+                              <div key={idx} className="relative rounded-xl overflow-hidden shadow-sm group border border-gray-200 bg-white">
+                                {item.type === 'image' ? (
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="block">
+                                     <img src={item.url} alt="Evidence" className="w-full h-32 object-cover hover:scale-110 transition-transform duration-300" />
+                                  </a>
+                                ) : (
+                                  <video src={item.url} controls className="w-full h-32 object-cover bg-black" />
+                                )}
+                                <div className="absolute top-2 right-2 px-2 py-1 bg-black/50 text-white text-[10px] font-bold rounded-md backdrop-blur-sm uppercase">
+                                  {item.type}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Review Section */}
                       {report.review && (
                         <div className="mb-8 p-6 bg-yellow-50 rounded-3xl border border-yellow-100">
                            <div className="text-xs font-black text-yellow-600 uppercase mb-2">ইউজার রিভিউ:</div>
@@ -164,7 +187,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ reports, users, onUpdat
 
                       <div className="flex flex-wrap items-center justify-between gap-6 pt-6 border-t border-gray-50">
                         <div className="flex items-center space-x-6 text-sm font-bold text-gray-400">
-                          {/* Fixed: Use reporterEmail as userEmail was not defined in Report interface */}
                           <span className="flex items-center"><svg className="w-4 h-4 mr-1.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg> {report.isAnonymous ? 'গোপন' : (report.reporterEmail || 'ইউজার')}</span>
                           <span className="flex items-center"><svg className="w-4 h-4 mr-1.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {report.date}</span>
                         </div>

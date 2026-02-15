@@ -36,6 +36,11 @@ export interface Report {
     rating: number;
     comment: string;
   };
+  // Optional evidence field
+  evidence?: {
+    type: 'image' | 'video';
+    url: string;
+  }[];
 }
 
 export const CATEGORIES = [

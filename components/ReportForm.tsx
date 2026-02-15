@@ -1,10 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CATEGORIES, DISTRICTS, DHAKA_SUB_LOCATIONS, SAVAR_WARDS, Report } from '../types';
 import { analyzeReport } from '../services/geminiService';
 
 interface ReportFormProps {
-  onSubmit: (report: Omit<Report, 'id' | 'timestamp' | 'status' | 'priority' | 'aiSummary' | 'ticketNumber'> & { aiAnalysis?: any }) => Promise<void>;
+  onSubmit: (
+    report: Omit<Report, 'id' | 'timestamp' | 'status' | 'priority' | 'aiSummary' | 'ticketNumber' | 'evidence'> & { aiAnalysis?: any },
+    files: File[]
+  ) => Promise<void>;
 }
 
 const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
@@ -21,7 +24,38 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
     reporterEmail: '',
     reporterPhone: '',
   });
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<{ url: string; type: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      previews.forEach(p => URL.revokeObjectURL(p.url));
+    };
+  }, [previews]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...newFiles]);
+
+      const newPreviews = newFiles.map(file => ({
+        url: URL.createObjectURL(file),
+        type: file.type
+      }));
+      setPreviews(prev => [...prev, ...newPreviews]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => {
+      const newPreviews = [...prev];
+      URL.revokeObjectURL(newPreviews[index].url);
+      newPreviews.splice(index, 1);
+      return newPreviews;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +70,6 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
       }
 
       // AI Analysis with Timeout (Max 3 seconds)
-      // যদি AI ৩ সেকেন্ডের মধ্যে রেসপন্স না করে, তাহলে আমরা স্কিপ করে ম্যানুয়াল রিপোর্ট জমা নেব।
       let analysis = null;
       try {
         const aiPromise = analyzeReport(finalData.description);
@@ -59,13 +92,12 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
       await onSubmit({
         ...finalData,
         aiAnalysis: analysis
-      });
+      }, files);
 
     } catch (err: any) {
       console.error("Form submission error:", err);
       alert(`দুঃখিত, রিপোর্ট জমা দেওয়া যায়নি।\nকারণ: ${err.message || "অজানা ত্রুটি"}`);
     } finally {
-      // Ensure spinner stops if component is still mounted
       setIsSubmitting(false);
     }
   };
@@ -208,6 +240,51 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-black text-gray-400 uppercase mb-2 px-2">
+              প্রমাণ সংযুক্ত করুন (ছবি বা ভিডিও) - <span className="text-[#2da65e]">ঐচ্ছিক</span>
+            </label>
+            <div className="relative group">
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                onChange={handleFileChange}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              <div className="w-full px-6 py-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center group-hover:border-[#2da65e] group-hover:bg-green-50/20 transition-all">
+                <svg className="w-8 h-8 text-gray-400 mb-2 group-hover:text-[#2da65e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <p className="text-sm font-bold text-gray-500">ফাইল নির্বাচন করতে ক্লিক করুন</p>
+                <p className="text-xs text-gray-400 mt-1">সর্বোচ্চ ১০ এমবি (ছবি/ভিডিও)</p>
+              </div>
+            </div>
+
+            {previews.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                {previews.map((preview, idx) => (
+                  <div key={idx} className="relative rounded-xl overflow-hidden shadow-sm group">
+                    {preview.type.startsWith('video/') ? (
+                      <video src={preview.url} className="w-full h-24 object-cover" />
+                    ) : (
+                      <img src={preview.url} alt="preview" className="w-full h-24 object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
