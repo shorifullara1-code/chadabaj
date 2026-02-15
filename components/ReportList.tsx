@@ -215,15 +215,7 @@ const ReportList: React.FC<ReportListProps> = ({ reports, title = "চাঁদ�
                 <span className="font-mono text-xs font-black text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100 group-hover:bg-[#2da65e] group-hover:text-white transition-colors">
                   {report.ticketNumber}
                 </span>
-                <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex-shrink-0 ${
-                  report.status === 'Resolved' ? 'bg-green-100 text-green-700' : 
-                  report.status === 'Investigating' ? 'bg-blue-100 text-blue-700' :
-                  report.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-50 text-orange-600'
-                }`}>
-                  {report.status === 'Resolved' ? 'সমাধানকৃত' : 
-                   report.status === 'Investigating' ? 'তদন্তাধীন' : 
-                   report.status === 'Rejected' ? 'বাতিল' : 'অপেক্ষমান'}
-                </span>
+                {/* Status Badge Removed */}
               </div>
               
               <h3 className="text-xl font-black text-gray-900 mb-4 group-hover:text-[#2da65e] transition-colors leading-tight">
