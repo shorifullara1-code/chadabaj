@@ -155,9 +155,42 @@ const ReportList: React.FC<ReportListProps> = ({ reports, title = "চাঁদ�
                 {report.title}
               </h3>
               
-              <p className="text-gray-500 font-medium leading-relaxed mb-6 flex-grow line-clamp-3">
+              <p className="text-gray-500 font-medium leading-relaxed mb-6 flex-grow line-clamp-4">
                 {report.description}
               </p>
+
+              {/* Evidence Section - New Addition */}
+              {report.evidence && report.evidence.length > 0 && (
+                <div className="mb-6 mt-2">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">সংযুক্ত প্রমাণাদি</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {report.evidence.slice(0, 4).map((item, idx) => (
+                      <div key={idx} className="relative rounded-xl overflow-hidden shadow-sm group border border-gray-100 bg-gray-50 aspect-video">
+                        {item.type === 'image' ? (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                            <img 
+                              src={item.url} 
+                              alt="Evidence" 
+                              className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" 
+                            />
+                          </a>
+                        ) : (
+                          <video 
+                            src={item.url} 
+                            controls 
+                            className="w-full h-full object-cover" 
+                          />
+                        )}
+                      </div>
+                    ))}
+                    {report.evidence.length > 4 && (
+                      <div className="flex items-center justify-center bg-gray-100 rounded-xl text-xs font-bold text-gray-500">
+                        + আরও {report.evidence.length - 4} টি
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="pt-6 border-t border-gray-50 flex items-center justify-between text-[11px] text-gray-400 font-black uppercase tracking-wider">
                 <div className="flex flex-col">
