@@ -320,7 +320,10 @@ const App: React.FC = () => {
               <div className="w-6 h-6 bg-[#2da65e] rounded-lg"></div>
               <span className="text-xl font-black text-gray-900">চান্দাবাজ</span>
            </div>
-           <p className="text-gray-400 text-xs font-black tracking-widest">© {new Date().getFullYear()} চান্দাবাজ ডট কম - দুর্নীতিমুক্ত আগামীর জন্য</p>
+           <div className="text-gray-400 text-xs font-black tracking-widest space-y-2">
+             <p>© {new Date().getFullYear()} চান্দাবাজ ডট কম - দুর্নীতিমুক্ত আগামীর জন্য</p>
+             <p className="text-gray-500 font-bold">Developed And Designed By Shoriful Islam</p>
+           </div>
         </div>
       </footer>
     </div>

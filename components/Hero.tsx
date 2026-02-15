@@ -19,8 +19,11 @@ const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
               </span>
               <div className="flex items-center">
-                <span className="text-black font-black text-lg uppercase tracking-wide mr-2">
-                  DHAKA 19
+                <span className="text-gray-900 font-black text-xl uppercase tracking-wide mr-1.5">
+                  DHAKA
+                </span>
+                <span className="text-red-600 font-black text-xl mr-3">
+                  19
                 </span>
                 <span className="text-[#2da65e] text-lg font-bold mr-2">|</span>
                 <span className="text-gray-700 font-bold text-sm uppercase tracking-widest">
@@ -62,11 +65,12 @@ const Hero: React.FC<HeroProps> = ({ onStartReport, totalUsers = 0 }) => {
           
           <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
             <div className="relative mx-auto w-full rounded-3xl shadow-2xl overflow-hidden animate-float">
-              {/* Updated Image to Savar National Memorial */}
+              {/* Updated Image to Savar National Memorial with a robust source and referrerPolicy */}
               <img
                 className="w-full h-[400px] object-cover"
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/National_Martyrs%27_Memorial_of_Bangladesh.jpg/1200px-National_Martyrs%27_Memorial_of_Bangladesh.jpg"
-                alt="Savar National Memorial"
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/National_Martyrs%27_Memorial_2017.jpg/1280px-National_Martyrs%27_Memorial_2017.jpg"
+                alt="Savar National Memorial Bangladesh"
+                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-8">
                 <div className="text-white">
