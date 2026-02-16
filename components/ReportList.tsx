@@ -22,27 +22,35 @@ const ReportList: React.FC<ReportListProps> = ({ reports, title = "চাঁদ�
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
+  // Helper to safely parse reviews
+  const parseReviews = (data: any): Review[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'object') return [data]; // Handle legacy single object
+    return [];
+  };
+
   // Fetch reviews when a report is selected
   useEffect(() => {
     if (selectedReport) {
-      const fetchReviews = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('reviews')
-            .select('*')
-            .eq('report_id', selectedReport.id)
-            .order('created_at', { ascending: false });
-          
-          if (!error && data) {
-            setReviews(data as Review[]);
-          } else {
-            setReviews([]); // Reset if table doesn't exist or empty
-          }
-        } catch (e) {
-          console.error("Error fetching reviews:", e);
-        }
+      // Use the reviews directly from the selected report (JSONB column)
+      // We fetch fresh data to ensure we have the latest
+      const fetchFreshReportData = async () => {
+         const { data, error } = await supabase
+           .from('reports')
+           .select('review') // Assuming column name is 'review'
+           .eq('id', selectedReport.id)
+           .single();
+         
+         if (data && !error) {
+           setReviews(parseReviews(data.review));
+         } else {
+           // Fallback to prop data if fetch fails
+           setReviews(parseReviews(selectedReport.review));
+         }
       };
-      fetchReviews();
+      
+      fetchFreshReportData();
       setReviewSuccess(false);
       setNewReview({ rating: 0, comment: '', user_name: '' });
     }
@@ -54,7 +62,7 @@ const ReportList: React.FC<ReportListProps> = ({ reports, title = "চাঁদ�
 
     setIsSubmittingReview(true);
     try {
-      const reviewData = {
+      const reviewData: Review = {
         report_id: selectedReport.id,
         user_name: newReview.user_name || 'Anonymous',
         rating: newReview.rating,
@@ -62,18 +70,26 @@ const ReportList: React.FC<ReportListProps> = ({ reports, title = "চাঁদ�
         created_at: new Date().toISOString()
       };
 
+      const updatedReviews = [reviewData, ...reviews];
+
+      // Update the 'review' column in the 'reports' table with the new array
       const { error } = await supabase
-        .from('reviews')
-        .insert([reviewData]);
+        .from('reports')
+        .update({ review: updatedReviews })
+        .eq('id', selectedReport.id);
 
       if (error) throw error;
 
-      setReviews([reviewData as Review, ...reviews]);
+      setReviews(updatedReviews);
       setReviewSuccess(true);
       setNewReview({ rating: 0, comment: '', user_name: '' });
-    } catch (err) {
+      
+      // Update local selectedReport state to reflect changes immediately
+      setSelectedReport({ ...selectedReport, review: updatedReviews });
+
+    } catch (err: any) {
       console.error("Failed to submit review:", err);
-      alert("রিভিউ জমা দেওয়া যায়নি। সম্ভবত ডাটাবেজ কানেকশন সমস্যা।");
+      alert(`রিভিউ জমা দেওয়া যায়নি। এরর: ${err.message || "Database connection error"}`);
     } finally {
       setIsSubmittingReview(false);
     }

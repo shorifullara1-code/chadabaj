@@ -40,11 +40,8 @@ export interface Report {
   reporterName: string;
   reporterEmail: string;
   reporterPhone: string;
-  // Optional review field for tracking resolution quality (Legacy/Single)
-  review?: {
-    rating: number;
-    comment: string;
-  };
+  // Updated to support multiple reviews array stored in JSONB
+  review?: Review[];
   // Optional evidence field
   evidence?: {
     type: 'image' | 'video';
