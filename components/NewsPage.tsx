@@ -140,7 +140,7 @@ const NewsPage: React.FC = () => {
              <p className="italic text-xl text-gray-600 leading-relaxed relative z-10">
                চাঁদাবাজি টিকে থাকে দুটি কারণে—ভয় আর একাকিত্ব। একজন ব্যবসায়ী একা প্রতিবাদ করলে সে ভেঙে পড়ে, কিন্তু শতজনের অভিজ্ঞতা এক জায়গায় নথিভুক্ত হলে তা শক্তিতে রূপ নেয়। chandabaj.com কোনো রাজনৈতিক প্ল্যাটফর্ম নয়; এটি নাগরিক ডকুমেন্টেশন স্পেস। আমরা কাউকে অপরাধী ঘোষণা করতে আসিনি—আমরা সত্য জমা করতে এসেছি, যাতে আইন ও সমাজ তাদের কাজ করতে বাধ্য হয়।
              </p>
-             <p className="font-black text-gray-900 mt-6 pl-0 text-right">— Raju Ahmed Dipu, LL.M (UK)</p>
+             <p className="font-black text-gray-900 mt-6 pl-0 text-right">— Shoriful Islam ( Founder )</p>
           </div>
         </section>
 
@@ -148,7 +148,7 @@ const NewsPage: React.FC = () => {
         <section className="mt-20 pt-12 border-t-2 border-gray-900/5 space-y-8 text-sm text-gray-500 font-sans tracking-tight reveal">
           <div className="space-y-4">
             <h4 className="font-black text-gray-900 text-lg uppercase tracking-widest">Idea Protection & Non-Political Use Notice</h4>
-            <p>The concept, framework, structure, methodology, and public-interest design of chandabaj.com constitute an original civic documentation and review model, developed and conceptualised by Raju Ahmed Dipu, LL.M (UK) (“Founder”).</p>
+            <p>The concept, framework, structure, methodology, and public-interest design of chandabaj.com constitute an original civic documentation and review model, developed and conceptualised by Shoriful Islam (“Founder”).</p>
             <p>Any unauthorised political use in Bangladesh by any political party or organisation is strictly prohibited without prior written permission.</p>
           </div>
           
