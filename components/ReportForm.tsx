@@ -36,9 +36,9 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
+      const newFiles: File[] = Array.from(e.target.files);
       // Limit file size (e.g., 10MB per file)
-      const validFiles = newFiles.filter(file => {
+      const validFiles = newFiles.filter((file: File) => {
           if (file.size > 10 * 1024 * 1024) {
               alert(`ফাইল ${file.name} অনেক বড়। ১০ এমবির নিচে ফাইল দিন।`);
               return false;
@@ -48,7 +48,7 @@ const ReportForm: React.FC<ReportFormProps> = ({ onSubmit }) => {
 
       setFiles(prev => [...prev, ...validFiles]);
 
-      const newPreviews = validFiles.map(file => ({
+      const newPreviews = validFiles.map((file: File) => ({
         url: URL.createObjectURL(file),
         type: file.type
       }));
